@@ -20,16 +20,12 @@ Query Korean stock disclosures, financial statements, shareholder reports, and m
 
 ## Installation
 
-**PyPI (권장):**
 ```bash
+# pip
 pip install opendart-mcp-server
-```
 
-**소스에서 직접 설치:**
-```bash
-git clone https://github.com/gyeongmin100/Open-Dart-MCP.git
-cd Open-Dart-MCP
-pip install -e .
+# uv
+uv add opendart-mcp-server
 ```
 
 ---
@@ -40,13 +36,13 @@ MCP를 지원하는 클라이언트에서 공통으로 사용할 수 있는 설�
 
 설정 파일에 아래 내용을 추가하세요:
 
-**uvx 사용 (가장 간단, 별도 설치 불필요):**
+**pip:**
 ```json
 {
   "mcpServers": {
     "open-dart": {
-      "command": "uvx",
-      "args": ["opendartmcp"],
+      "command": "python",
+      "args": ["-m", "opendartmcp.server"],
       "env": {
         "DART_API_KEY": "your-api-key-here"
       }
@@ -55,13 +51,13 @@ MCP를 지원하는 클라이언트에서 공통으로 사용할 수 있는 설�
 }
 ```
 
-**pip 설치 후:**
+**uvx:**
 ```json
 {
   "mcpServers": {
     "open-dart": {
-      "command": "python",
-      "args": ["-m", "opendartmcp.server"],
+      "command": "uvx",
+      "args": ["--from", "opendart-mcp-server", "opendartmcp"],
       "env": {
         "DART_API_KEY": "your-api-key-here"
       }
