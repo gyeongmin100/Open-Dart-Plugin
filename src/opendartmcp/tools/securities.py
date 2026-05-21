@@ -20,9 +20,9 @@ def register(mcp: FastMCP, client: DartClient) -> None:
             end_de: 종료일 (YYYYMMDD)
         """
         params: dict = {"corp_code": corp_code}
-        if bgn_de:
+        if bgn_de is not None:
             params["bgn_de"] = bgn_de
-        if end_de:
+        if end_de is not None:
             params["end_de"] = end_de
         return await client.get_json("/estkRs.json", params)
 
@@ -40,9 +40,9 @@ def register(mcp: FastMCP, client: DartClient) -> None:
             end_de: 종료일 (YYYYMMDD)
         """
         params: dict = {"corp_code": corp_code}
-        if bgn_de:
+        if bgn_de is not None:
             params["bgn_de"] = bgn_de
-        if end_de:
+        if end_de is not None:
             params["end_de"] = end_de
         return await client.get_json("/dbdRs.json", params)
 
@@ -60,9 +60,9 @@ def register(mcp: FastMCP, client: DartClient) -> None:
             end_de: 종료일 (YYYYMMDD)
         """
         params: dict = {"corp_code": corp_code}
-        if bgn_de:
+        if bgn_de is not None:
             params["bgn_de"] = bgn_de
-        if end_de:
+        if end_de is not None:
             params["end_de"] = end_de
         return await client.get_json("/stkdpRs.json", params)
 
@@ -80,9 +80,9 @@ def register(mcp: FastMCP, client: DartClient) -> None:
             end_de: 종료일 (YYYYMMDD)
         """
         params: dict = {"corp_code": corp_code}
-        if bgn_de:
+        if bgn_de is not None:
             params["bgn_de"] = bgn_de
-        if end_de:
+        if end_de is not None:
             params["end_de"] = end_de
         return await client.get_json("/mgRs.json", params)
 
@@ -100,9 +100,9 @@ def register(mcp: FastMCP, client: DartClient) -> None:
             end_de: 종료일 (YYYYMMDD)
         """
         params: dict = {"corp_code": corp_code}
-        if bgn_de:
+        if bgn_de is not None:
             params["bgn_de"] = bgn_de
-        if end_de:
+        if end_de is not None:
             params["end_de"] = end_de
         return await client.get_json("/egisExtrRs.json", params)
 
@@ -120,8 +120,8 @@ def register(mcp: FastMCP, client: DartClient) -> None:
             end_de: 종료일 (YYYYMMDD)
         """
         params: dict = {"corp_code": corp_code}
-        if bgn_de:
+        if bgn_de is not None:
             params["bgn_de"] = bgn_de
-        if end_de:
+        if end_de is not None:
             params["end_de"] = end_de
         return await client.get_json("/dvdRs.json", params)
