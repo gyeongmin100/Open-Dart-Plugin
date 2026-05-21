@@ -1,7 +1,7 @@
 import os
 from mcp.server.fastmcp import FastMCP
 from opendartmcp.client import DartClient
-from opendartmcp.tools import disclosure, financial, stock_holdings, business_report
+from opendartmcp.tools import disclosure, financial, stock_holdings, business_report, major_report
 
 
 def create_server() -> FastMCP:
@@ -16,6 +16,7 @@ def create_server() -> FastMCP:
     financial.register(mcp, client)
     stock_holdings.register(mcp, client)
     business_report.register(mcp, client)
+    major_report.register(mcp, client)
 
     return mcp
 
