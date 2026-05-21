@@ -1,47 +1,63 @@
-# Open DART MCP
+# OpenDART MCP Server
 
-금융감독원 전자공시(DART) 데이터를 Claude에서 직접 조회할 수 있는 MCP(Model Context Protocol) 서버입니다.
+[![PyPI version](https://img.shields.io/pypi/v/opendartmcp)](https://pypi.org/project/opendartmcp/)
+[![Python](https://img.shields.io/pypi/pyversions/opendartmcp)](https://pypi.org/project/opendartmcp/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 프로젝트 소개
+MCP server for South Korea's [OpenDART API](https://opendart.fss.or.kr) (금융감독원 전자공시).  
+Query Korean stock disclosures, financial statements, shareholder reports, and more — directly from Claude, Cursor, or any MCP-compatible client.
 
-Open DART MCP 서버는 금융감독원의 [전자공시시스템(DART)](https://opendart.fss.or.kr) Open API를 MCP 프로토콜로 감싸, Claude Desktop 또는 MCP 호환 클라이언트에서 국내 상장기업의 공시정보, 재무제표, 지분현황 등을 자연어로 조회할 수 있게 합니다.
+**83 tools** across 6 API groups (DS001–DS006).
 
-## 사전 요구사항
+---
 
-- Python 3.11 이상
-- [uv](https://github.com/astral-sh/uv) (권장) 또는 pip
-- Open DART API 키
-  - [https://opendart.fss.or.kr](https://opendart.fss.or.kr) 에서 회원가입 후 API 키 발급
-  - 마이페이지 > OpenAPI 이용현황 > 인증키 신청/관리
+## Requirements
 
-## 설치 방법
+- Python 3.11+
+- OpenDART API key → [발급받기](https://opendart.fss.or.kr) (회원가입 → 마이페이지 → OpenAPI 인증키 신청)
 
+---
+
+## Installation
+
+**PyPI (권장):**
+```bash
+pip install opendartmcp
+```
+
+**소스에서 직접 설치:**
 ```bash
 git clone https://github.com/gyeongmin100/Open-Dart-MCP.git
 cd Open-Dart-MCP
 pip install -e .
 ```
 
-uv 사용 시:
+---
 
-```bash
-git clone https://github.com/gyeongmin100/Open-Dart-MCP.git
-cd Open-Dart-MCP
-uv sync
+## MCP Client 설정
+
+### Claude Desktop
+
+설정 파일 위치:
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+**uvx 사용 (가장 간단, 별도 설치 불필요):**
+```json
+{
+  "mcpServers": {
+    "open-dart": {
+      "command": "uvx",
+      "args": ["opendartmcp"],
+      "env": {
+        "DART_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
 ```
 
-## Claude Desktop 설정
-
-### macOS
-
-설정 파일 위치: `~/Library/Application Support/Claude/claude_desktop_config.json`
-
-### Windows
-
-설정 파일 위치: `%APPDATA%\Claude\claude_desktop_config.json`
-
-### python 사용 시
-
+**pip 설치 후:**
 ```json
 {
   "mcpServers": {
@@ -49,73 +65,150 @@ uv sync
       "command": "python",
       "args": ["-m", "opendartmcp.server"],
       "env": {
-        "DART_API_KEY": "여기에_API_키_입력"
+        "DART_API_KEY": "your-api-key-here"
       }
     }
   }
 }
 ```
 
-### uv 사용 시
+### Cursor / Windsurf / 기타 MCP 클라이언트
 
-```json
-{
-  "mcpServers": {
-    "open-dart": {
-      "command": "uv",
-      "args": ["run", "--directory", "/절대경로/opendartmcp", "opendartmcp"],
-      "env": {
-        "DART_API_KEY": "여기에_API_키_입력"
-      }
-    }
-  }
-}
+동일한 설정을 각 클라이언트의 MCP 설정 파일에 추가하면 됩니다.
+
+---
+
+## 사용 예시
+
+```
+삼성전자 최근 공시 보여줘
+카카오 2023년 재무제표 알려줘
+현대자동차 최대주주 현황은?
+LG전자 임원 현황 조회해줘
+SK하이닉스 배당 이력 알려줘
+2024년 합병 공시 목록 검색해줘
 ```
 
-## 제공하는 툴 목록
+---
 
-총 **83개** 툴을 6개 그룹으로 제공합니다.
+## Tools (83개)
 
-### DS001 공시정보 (4개)
+### DS001 · 공시정보 (4)
 
-| 툴 | 설명 |
-|---|---|
-| `search_disclosures` | 기업명 또는 법인코드로 공시 목록 검색 |
+| Tool | Description |
+|------|-------------|
+| `search_disclosures` | 공시 목록 검색 |
 | `get_company_info` | 기업 기본정보 조회 |
 | `get_disclosure_document` | 공시 원문 문서 조회 |
 | `get_corp_codes` | 전체 법인코드 목록 다운로드 |
 
-### DS002 정기보고서 주요정보 (29개)
+### DS002 · 정기보고서 주요정보 (28)
 
-배당, 임원, 직원, 보수, 감사, 최대주주, 자기주식, 배당, 회계감사 등 사업보고서 핵심 항목을 개별 툴로 제공합니다.
+<details>
+<summary>목록 펼치기</summary>
 
-### DS003 재무정보 (7개)
+| Tool | Description |
+|------|-------------|
+| `get_capital_change_status` | 증자(감자) 현황 |
+| `get_dividend_info` | 배당에 관한 사항 |
+| `get_treasury_stock` | 자기주식 취득 및 처분 현황 |
+| `get_largest_shareholder` | 최대주주 현황 |
+| `get_largest_shareholder_changes` | 최대주주 변동현황 |
+| `get_minority_shareholders` | 소액주주 현황 |
+| `get_executives` | 임원 현황 |
+| `get_employees` | 직원 현황 |
+| `get_executive_compensation_total` | 이사·감사 전체의 보수현황 |
+| `get_executive_compensation_gmtsck` | 이사·감사 전체 보수현황 (주총승인금액) |
+| `get_executive_compensation_type` | 이사·감사 전체 보수현황 (유형별) |
+| `get_executive_compensation_individual_v2` | 이사·감사 개인별 보수현황 5억원 이상 (V2) |
+| `get_individual_pay_over5_v2` | 개인별 보수지급 금액 상위 5인 (V2) |
+| `get_unregistered_executives` | 미등기임원 보수현황 |
+| `get_investment_in_other_corps` | 타법인 출자현황 |
+| `get_audit_opinion` | 회계감사인 명칭 및 감사의견 |
+| `get_audit_fee` | 감사용역체결현황 |
+| `get_non_audit_service` | 비감사용역 계약체결 현황 |
+| `get_outside_director_changes` | 사외이사 및 변동현황 |
+| `get_stock_total_qty` | 주식의 총수 현황 |
+| `get_bond_issuance` | 채무증권 발행실적 |
+| `get_commercial_paper` | 기업어음증권 미상환 잔액 |
+| `get_short_term_bond` | 단기사채 미상환 잔액 |
+| `get_corp_bond_outstanding` | 회사채 미상환 잔액 |
+| `get_hybrid_bond` | 신종자본증권 미상환 잔액 |
+| `get_debt_securities_outstanding` | 조건부자본증권 미상환 잔액 |
+| `get_public_offering_fund_usage` | 공모자금 사용내역 |
+| `get_private_placement_fund_usage` | 사모자금 사용내역 |
 
-| 툴 | 설명 |
-|---|---|
+</details>
+
+### DS003 · 재무정보 (7)
+
+| Tool | Description |
+|------|-------------|
 | `get_single_company_account` | 단일 회사 주요 재무제표 계정 조회 |
 | `get_multi_company_account` | 다중 회사 주요 재무제표 계정 조회 |
-| `get_xbrl_financial` | XBRL 재무제표 원본 조회 (ZIP→XML) |
+| `get_xbrl_financial` | XBRL 재무제표 원본 조회 |
 | `get_single_full_financial` | 단일 회사 전체 재무제표 조회 |
 | `get_xbrl_taxonomy` | XBRL 표준 재무제표 양식 조회 |
 | `get_single_financial_index` | 단일 회사 주요 재무지표 조회 |
 | `get_multi_financial_index` | 다중 회사 주요 재무지표 조회 |
 
-### DS004 지분공시 (2개)
+### DS004 · 지분공시 (2)
 
-| 툴 | 설명 |
-|---|---|
+| Tool | Description |
+|------|-------------|
 | `get_large_holding_report` | 5% 이상 대량보유 현황 |
 | `get_executive_stock_report` | 임원 및 주요주주 소유보고 |
 
-### DS005 주요사항보고서 (36개)
+### DS005 · 주요사항보고서 (36)
 
-유상증자, 무상증자, 감자, 합병, 분할, 주식교환, 영업양수도, 자산양수도, 부도, 영업정지, 해산 등 주요 기업 이벤트 항목을 개별 툴로 제공합니다.
+<details>
+<summary>목록 펼치기</summary>
 
-### DS006 증권신고서 (6개)
+| Tool | Description |
+|------|-------------|
+| `get_paid_capital_increase` | 유상증자 결정 |
+| `get_free_capital_increase` | 무상증자 결정 |
+| `get_paid_free_capital_increase` | 유무상증자 결정 |
+| `get_capital_reduction` | 감자 결정 |
+| `get_convertible_bond` | 전환사채권 발행결정 |
+| `get_bond_with_warrants` | 신주인수권부사채권 발행결정 |
+| `get_exchangeable_bond` | 교환사채권 발행결정 |
+| `get_conditional_capital_issuance` | 상각형 조건부자본증권 발행결정 |
+| `get_stock_acquisition` | 자기주식 취득 결정 |
+| `get_stock_disposal` | 자기주식 처분 결정 |
+| `get_treasury_stock_trust_conclude` | 자기주식취득 신탁계약 체결 결정 |
+| `get_treasury_stock_trust_terminate` | 자기주식취득 신탁계약 해지 결정 |
+| `get_merger_decision` | 회사합병 결정 |
+| `get_division_decision` | 회사분할 결정 |
+| `get_division_merger_decision` | 회사분할합병 결정 |
+| `get_stock_exchange_decision` | 주식교환·이전 결정 |
+| `get_business_acquisition` | 영업양수 결정 |
+| `get_business_transfer` | 영업양도 결정 |
+| `get_tangible_asset_acquisition` | 유형자산 양수 결정 |
+| `get_tangible_asset_transfer` | 유형자산 양도 결정 |
+| `get_equity_investment_acquisition` | 타법인 주식 및 출자증권 양수결정 |
+| `get_equity_investment_transfer` | 타법인 주식 및 출자증권 양도결정 |
+| `get_equity_securities_acquisition` | 주권 관련 사채권 양수 결정 |
+| `get_equity_securities_transfer` | 주권 관련 사채권 양도 결정 |
+| `get_other_asset_acquisition` | 자산양수도(기타), 풋백옵션 |
+| `get_overseas_listing_decision` | 해외 증권시장 상장 결정 |
+| `get_overseas_delisting_decision` | 해외 증권시장 상장폐지 결정 |
+| `get_overseas_listing` | 해외 증권시장 상장 |
+| `get_overseas_delisting` | 해외 증권시장 상장폐지 |
+| `get_bankruptcy_report` | 부도발생 |
+| `get_business_suspension_report` | 영업정지 |
+| `get_rehabilitation_report` | 회생절차 개시신청 |
+| `get_dissolution_report` | 해산사유 발생 |
+| `get_creditor_management` | 채권은행 등의 관리절차 개시 |
+| `get_creditor_management_suspension` | 채권은행 등의 관리절차 중단 |
+| `get_lawsuit_report` | 소송 등의 제기 |
 
-| 툴 | 설명 |
-|---|---|
+</details>
+
+### DS006 · 증권신고서 (6)
+
+| Tool | Description |
+|------|-------------|
 | `get_equity_securities` | 지분증권 증권신고서 |
 | `get_debt_securities` | 채무증권(회사채) 증권신고서 |
 | `get_depositary_receipts` | 증권예탁증권(DR) 증권신고서 |
@@ -123,19 +216,16 @@ uv sync
 | `get_stock_exchange_securities` | 주식 포괄적 교환·이전 증권신고서 |
 | `get_division_securities` | 분할 관련 증권신고서 |
 
-## 사용 예시
-
-Claude Desktop에서 다음과 같이 질문할 수 있습니다:
-
-- "삼성전자 최근 공시 보여줘"
-- "카카오 2023년 재무제표 알려줘"
-- "현대자동차 최대주주 현황은?"
-- "LG전자 임원 현황 조회해줘"
-- "SK하이닉스 배당 이력 알려줘"
-- "2024년 합병 공시 목록 검색해줘"
+---
 
 ## 주의사항
 
 - **API 일일 호출 한도**: 10,000건 (초과 시 오류 발생)
-- **법인코드(`corp_code`)**: 기업명이 아닌 8자리 고유 코드. `get_corp_codes` 툴로 조회하거나 `search_disclosures`에서 반환된 값을 사용합니다.
-- API 키는 환경변수 `DART_API_KEY`로 전달해야 하며, 코드에 직접 입력하지 마십시오.
+- **법인코드(`corp_code`)**: 기업명이 아닌 8자리 고유 코드. `get_corp_codes`로 조회하거나 `search_disclosures` 응답값을 사용합니다.
+- API 키는 환경변수 `DART_API_KEY`로 전달하며, 코드에 직접 입력하지 마십시오.
+
+---
+
+## License
+
+MIT
