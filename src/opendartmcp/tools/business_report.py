@@ -193,25 +193,6 @@ def register(mcp: FastMCP, client: DartClient) -> None:
         })
 
     @mcp.tool()
-    async def get_executive_compensation_individual(
-        corp_code: str,
-        bsns_year: str,
-        reprt_code: str,
-    ) -> dict:
-        """이사·감사의 개인별 보수현황 (5억원 이상)을 조회합니다.
-
-        Args:
-            corp_code: DART 기업 고유번호 (8자리)
-            bsns_year: 사업연도 (YYYY, 예: "2023")
-            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
-        """
-        return await client.get_json("/hmvAuditIndvdlBySttus.json", {
-            "corp_code": corp_code,
-            "bsns_year": bsns_year,
-            "reprt_code": reprt_code,
-        })
-
-    @mcp.tool()
     async def get_executive_compensation_total(
         corp_code: str,
         bsns_year: str,
@@ -225,25 +206,6 @@ def register(mcp: FastMCP, client: DartClient) -> None:
             reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
         """
         return await client.get_json("/hmvAuditAllSttus.json", {
-            "corp_code": corp_code,
-            "bsns_year": bsns_year,
-            "reprt_code": reprt_code,
-        })
-
-    @mcp.tool()
-    async def get_individual_pay_over5(
-        corp_code: str,
-        bsns_year: str,
-        reprt_code: str,
-    ) -> dict:
-        """개인별 보수지급 금액 (5억 이상 상위 5인)을 조회합니다.
-
-        Args:
-            corp_code: DART 기업 고유번호 (8자리)
-            bsns_year: 사업연도 (YYYY, 예: "2023")
-            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
-        """
-        return await client.get_json("/indvdlByPay.json", {
             "corp_code": corp_code,
             "bsns_year": bsns_year,
             "reprt_code": reprt_code,
@@ -440,7 +402,26 @@ def register(mcp: FastMCP, client: DartClient) -> None:
         })
 
     @mcp.tool()
-    async def get_executive_compensation_v2(
+    async def get_executive_compensation_individual_v2(
+        corp_code: str,
+        bsns_year: str,
+        reprt_code: str,
+    ) -> dict:
+        """이사·감사 개인별 보수현황 Ver 2.0 - 5억원 이상 이사·감사 개인별 보수현황을 조회합니다.
+
+        Args:
+            corp_code: DART 기업 고유번호 (8자리)
+            bsns_year: 사업연도 (YYYY, 예: "2023")
+            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
+        """
+        return await client.get_json("/hmvAuditIndvdlBySttusV2.json", {
+            "corp_code": corp_code,
+            "bsns_year": bsns_year,
+            "reprt_code": reprt_code,
+        })
+
+    @mcp.tool()
+    async def get_individual_pay_over5_v2(
         corp_code: str,
         bsns_year: str,
         reprt_code: str,

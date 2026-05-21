@@ -1,4 +1,6 @@
 import os
+from contextlib import asynccontextmanager
+
 from mcp.server.fastmcp import FastMCP
 from opendartmcp.client import DartClient
 from opendartmcp.tools import (
@@ -17,7 +19,15 @@ def create_server() -> FastMCP:
         raise RuntimeError("DART_API_KEY 환경변수가 설정되지 않았습니다")
 
     client = DartClient(api_key)
-    mcp = FastMCP("open-dart")
+
+    @asynccontextmanager
+    async def lifespan(server):
+        try:
+            yield
+        finally:
+            await client.aclose()
+
+    mcp = FastMCP("open-dart", lifespan=lifespan)
 
     disclosure.register(mcp, client)
     business_report.register(mcp, client)

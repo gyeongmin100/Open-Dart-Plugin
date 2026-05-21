@@ -93,20 +93,20 @@ uv sync
 
 | 툴 | 설명 |
 |---|---|
-| `get_financial_statements` | 단일 회사 재무제표 조회 |
-| `get_multi_company_financials` | 다중 회사 재무제표 조회 |
-| `get_xbrl_taxonomy` | XBRL 재무제표 양식 조회 |
-| `get_xbrl_financial_statements` | XBRL 단일 회사 재무제표 |
-| `get_financial_indicators` | 단일 회사 주요 재무지표 |
-| `get_multi_company_indicators` | 다중 회사 주요 재무지표 |
-| `get_full_xbrl` | 전체 XBRL 데이터 조회 |
+| `get_single_company_account` | 단일 회사 주요 재무제표 계정 조회 |
+| `get_multi_company_account` | 다중 회사 주요 재무제표 계정 조회 |
+| `get_xbrl_financial` | XBRL 재무제표 원본 조회 (ZIP→XML) |
+| `get_single_full_financial` | 단일 회사 전체 재무제표 조회 |
+| `get_xbrl_taxonomy` | XBRL 표준 재무제표 양식 조회 |
+| `get_single_financial_index` | 단일 회사 주요 재무지표 조회 |
+| `get_multi_financial_index` | 다중 회사 주요 재무지표 조회 |
 
 ### DS004 지분공시 (2개)
 
 | 툴 | 설명 |
 |---|---|
-| `get_major_shareholders` | 5% 이상 대량보유 현황 |
-| `get_executive_shareholders` | 임원 및 주요주주 소유보고 |
+| `get_large_holding_report` | 5% 이상 대량보유 현황 |
+| `get_executive_stock_report` | 임원 및 주요주주 소유보고 |
 
 ### DS005 주요사항보고서 (36개)
 
@@ -116,12 +116,12 @@ uv sync
 
 | 툴 | 설명 |
 |---|---|
-| `get_equity_securities` | 지분증권 신고서 |
-| `get_debt_securities` | 채무증권 신고서 |
-| `get_merger_securities` | 합병 관련 신고서 |
-| `get_split_securities` | 분할 관련 신고서 |
-| `get_equity_offer` | 지분증권 청약 현황 |
-| `get_debt_offer` | 채무증권 청약 현황 |
+| `get_equity_securities` | 지분증권 증권신고서 |
+| `get_debt_securities` | 채무증권(회사채) 증권신고서 |
+| `get_depositary_receipts` | 증권예탁증권(DR) 증권신고서 |
+| `get_merger_securities` | 합병 관련 증권신고서 |
+| `get_stock_exchange_securities` | 주식 포괄적 교환·이전 증권신고서 |
+| `get_division_securities` | 분할 관련 증권신고서 |
 
 ## 사용 예시
 

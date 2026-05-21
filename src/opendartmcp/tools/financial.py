@@ -47,13 +47,14 @@ def register(mcp: FastMCP, client: DartClient) -> None:
         return await client.get_json("/fnlttMultiAcnt.json", params)
 
     @mcp.tool()
-    async def get_xbrl_financial(rcept_no: str) -> dict:
-        """XBRL 형식의 재무제표 원본을 조회합니다 (XML → dict 변환).
+    async def get_xbrl_financial(rcept_no: str, reprt_code: str) -> dict:
+        """XBRL 형식의 재무제표 원본을 조회합니다 (ZIP → XML → dict 변환).
 
         Args:
             rcept_no: 접수번호 14자리 (필수)
+            reprt_code: 보고서 코드 ("11013"=1분기, "11012"=반기, "11014"=3분기, "11011"=사업보고서)
         """
-        return await client.get_xml_as_dict("/fnlttXbrl.xml", {"rcept_no": rcept_no})
+        return await client.get_zip_xml("/fnlttXbrl.xml", {"rcept_no": rcept_no, "reprt_code": reprt_code})
 
     @mcp.tool()
     async def get_single_full_financial(
@@ -83,7 +84,7 @@ def register(mcp: FastMCP, client: DartClient) -> None:
         """XBRL 표준 재무제표 양식(택사노미)을 조회합니다.
 
         Args:
-            sj_div: 재무제표 구분 ("BS"=재무상태표, "IS"=손익계산서, "CIS"=포괄손익계산서, "CF"=현금흐름표, "SCE"=자본변동표)
+            sj_div: 재무제표 구분 코드. 재무상태표="BS1"~"BS4", 손익계산서="IS1"~"IS4", 포괄손익계산서="CIS1"~"CIS4", 단일포괄손익계산서="DCIS1"~"DCIS8", 현금흐름표="CF1"~"CF4", 자본변동표="SCE1"~"SCE2" (숫자 접미사는 연결/개별 및 분류방식 조합)
         """
         return await client.get_json("/xbrlTaxonomy.json", {"sj_div": sj_div})
 
@@ -131,4 +132,4 @@ def register(mcp: FastMCP, client: DartClient) -> None:
             "reprt_code": reprt_code,
             "idx_cl_code": idx_cl_code,
         }
-        return await client.get_json("/fnlttMultiIndx.json", params)
+        return await client.get_json("/fnlttCmpnyIndx.json", params)

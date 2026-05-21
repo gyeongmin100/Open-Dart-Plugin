@@ -44,7 +44,7 @@ def register(mcp: FastMCP, client: DartClient) -> None:
             params["bgn_de"] = bgn_de
         if end_de is not None:
             params["end_de"] = end_de
-        return await client.get_json("/dbdRs.json", params)
+        return await client.get_json("/bdRs.json", params)
 
     @mcp.tool()
     async def get_depositary_receipts(
@@ -104,7 +104,7 @@ def register(mcp: FastMCP, client: DartClient) -> None:
             params["bgn_de"] = bgn_de
         if end_de is not None:
             params["end_de"] = end_de
-        return await client.get_json("/egisExtrRs.json", params)
+        return await client.get_json("/extrRs.json", params)
 
     @mcp.tool()
     async def get_division_securities(
@@ -124,4 +124,4 @@ def register(mcp: FastMCP, client: DartClient) -> None:
             params["bgn_de"] = bgn_de
         if end_de is not None:
             params["end_de"] = end_de
-        return await client.get_json("/dvdRs.json", params)
+        return await client.get_json("/dvRs.json", params)

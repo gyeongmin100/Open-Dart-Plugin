@@ -66,7 +66,7 @@ def register(mcp: FastMCP, client: DartClient) -> None:
         Args:
             rcept_no: 접수번호 (14자리, 필수)
         """
-        return await client.get_xml_as_dict("/document.xml", {"rcept_no": rcept_no})
+        return await client.get_zip_xml("/document.xml", {"rcept_no": rcept_no})
 
     @mcp.tool()
     async def get_corp_codes() -> dict:
