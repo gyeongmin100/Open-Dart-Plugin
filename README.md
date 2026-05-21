@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 MCP server for South Korea's [OpenDART API](https://opendart.fss.or.kr) (금융감독원 전자공시).  
-Query Korean stock disclosures, financial statements, shareholder reports, and more — directly from Claude, Cursor, or any MCP-compatible client.
+Query Korean stock disclosures, financial statements, shareholder reports, and more — directly from any MCP-compatible client.
 
 **83 tools** across 6 API groups (DS001–DS006).
 
@@ -14,7 +14,7 @@ Query Korean stock disclosures, financial statements, shareholder reports, and m
 ## Requirements
 
 - Python 3.11+
-- OpenDART API key → [발급받기](https://opendart.fss.or.kr) (회원가입 → 마이페이지 → OpenAPI 인증키 신청)
+- OpenDART API key → [opendart.fss.or.kr](https://opendart.fss.or.kr) 에서 발급
 
 ---
 
@@ -34,13 +34,11 @@ pip install -e .
 
 ---
 
-## MCP Client 설정
+## MCP 설정
 
-### Claude Desktop
+MCP를 지원하는 클라이언트에서 공통으로 사용할 수 있는 설정입니다.
 
-설정 파일 위치:
-- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+설정 파일에 아래 내용을 추가하세요:
 
 **uvx 사용 (가장 간단, 별도 설치 불필요):**
 ```json
@@ -72,10 +70,6 @@ pip install -e .
 }
 ```
 
-### Cursor / Windsurf / 기타 MCP 클라이언트
-
-동일한 설정을 각 클라이언트의 MCP 설정 파일에 추가하면 됩니다.
-
 ---
 
 ## 사용 예시
@@ -95,12 +89,17 @@ SK하이닉스 배당 이력 알려줘
 
 ### DS001 · 공시정보 (4)
 
+<details>
+<summary>목록 펼치기</summary>
+
 | Tool | Description |
 |------|-------------|
 | `search_disclosures` | 공시 목록 검색 |
 | `get_company_info` | 기업 기본정보 조회 |
 | `get_disclosure_document` | 공시 원문 문서 조회 |
 | `get_corp_codes` | 전체 법인코드 목록 다운로드 |
+
+</details>
 
 ### DS002 · 정기보고서 주요정보 (28)
 
@@ -142,6 +141,9 @@ SK하이닉스 배당 이력 알려줘
 
 ### DS003 · 재무정보 (7)
 
+<details>
+<summary>목록 펼치기</summary>
+
 | Tool | Description |
 |------|-------------|
 | `get_single_company_account` | 단일 회사 주요 재무제표 계정 조회 |
@@ -152,12 +154,19 @@ SK하이닉스 배당 이력 알려줘
 | `get_single_financial_index` | 단일 회사 주요 재무지표 조회 |
 | `get_multi_financial_index` | 다중 회사 주요 재무지표 조회 |
 
+</details>
+
 ### DS004 · 지분공시 (2)
+
+<details>
+<summary>목록 펼치기</summary>
 
 | Tool | Description |
 |------|-------------|
 | `get_large_holding_report` | 5% 이상 대량보유 현황 |
 | `get_executive_stock_report` | 임원 및 주요주주 소유보고 |
+
+</details>
 
 ### DS005 · 주요사항보고서 (36)
 
@@ -207,6 +216,9 @@ SK하이닉스 배당 이력 알려줘
 
 ### DS006 · 증권신고서 (6)
 
+<details>
+<summary>목록 펼치기</summary>
+
 | Tool | Description |
 |------|-------------|
 | `get_equity_securities` | 지분증권 증권신고서 |
@@ -216,12 +228,13 @@ SK하이닉스 배당 이력 알려줘
 | `get_stock_exchange_securities` | 주식 포괄적 교환·이전 증권신고서 |
 | `get_division_securities` | 분할 관련 증권신고서 |
 
+</details>
+
 ---
 
 ## 주의사항
 
 - **API 일일 호출 한도**: 10,000건 (초과 시 오류 발생)
-- **법인코드(`corp_code`)**: 기업명이 아닌 8자리 고유 코드. `get_corp_codes`로 조회하거나 `search_disclosures` 응답값을 사용합니다.
 - API 키는 환경변수 `DART_API_KEY`로 전달하며, 코드에 직접 입력하지 마십시오.
 
 ---
