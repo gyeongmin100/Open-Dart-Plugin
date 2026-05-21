@@ -1,6 +1,7 @@
 import os
 from mcp.server.fastmcp import FastMCP
 from opendartmcp.client import DartClient
+from opendartmcp.tools import disclosure
 
 
 def create_server() -> FastMCP:
@@ -11,7 +12,8 @@ def create_server() -> FastMCP:
     client = DartClient(api_key)
     mcp = FastMCP("open-dart")
 
-    # TODO: 각 툴 모듈 register 호출 (추후 단계에서 추가)
+    disclosure.register(mcp, client)
+    # TODO: 나머지 모듈 추가 예정
 
     return mcp
 
