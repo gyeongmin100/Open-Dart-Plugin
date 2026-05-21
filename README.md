@@ -17,16 +17,16 @@ Open DART MCP 서버는 금융감독원의 [전자공시시스템(DART)](https:/
 ## 설치 방법
 
 ```bash
-git clone https://github.com/your-username/opendartmcp.git
-cd opendartmcp
+git clone https://github.com/gyeongmin100/Open-Dart-MCP.git
+cd Open-Dart-MCP
 pip install -e .
 ```
 
 uv 사용 시:
 
 ```bash
-git clone https://github.com/your-username/opendartmcp.git
-cd opendartmcp
+git clone https://github.com/gyeongmin100/Open-Dart-MCP.git
+cd Open-Dart-MCP
 uv sync
 ```
 
