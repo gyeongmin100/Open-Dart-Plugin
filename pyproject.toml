@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "opendartmcp"
+name = "opendart-mcp-server"
 version = "0.1.0"
 description = "OpenDART API MCP Server — Korean stock disclosure data via Model Context Protocol"
 readme = "README.md"

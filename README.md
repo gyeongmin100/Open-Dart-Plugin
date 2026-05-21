@@ -1,7 +1,7 @@
 # OpenDART MCP Server
 
-[![PyPI version](https://img.shields.io/pypi/v/opendartmcp)](https://pypi.org/project/opendartmcp/)
-[![Python](https://img.shields.io/pypi/pyversions/opendartmcp)](https://pypi.org/project/opendartmcp/)
+[![PyPI version](https://img.shields.io/pypi/v/opendart-mcp-server)](https://pypi.org/project/opendart-mcp-server/)
+[![Python](https://img.shields.io/pypi/pyversions/opendart-mcp-server)](https://pypi.org/project/opendart-mcp-server/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 MCP server for South Korea's [OpenDART API](https://opendart.fss.or.kr) (금융감독원 전자공시).  
@@ -22,7 +22,7 @@ Query Korean stock disclosures, financial statements, shareholder reports, and m
 
 **PyPI (권장):**
 ```bash
-pip install opendartmcp
+pip install opendart-mcp-server
 ```
 
 **소스에서 직접 설치:**
