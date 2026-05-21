@@ -1,6 +1,6 @@
 name: opendartmcp
 displayName: OpenDART API MCP Server
-description: 금융감독원 전자공시(OpenDART) API를 MCP 프로토콜로 제공하는 서버. 공시검색, 재무제표, 지분공시 등 84개 툴 제공.
+description: 금융감독원 전자공시(OpenDART) API를 MCP 프로토콜로 제공하는 서버. 공시검색, 재무제표, 지분공시 등 83개 툴 제공.
 homepage: https://github.com/gyeongmin100/Open-Dart-MCP
 license: MIT
 
