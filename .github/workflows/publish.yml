@@ -11,9 +11,13 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       - run: pip install build
       - run: python -m build
       - uses: pypa/gh-action-pypi-publish@release/v1
