@@ -5,13 +5,28 @@ build-backend = "hatchling.build"
 [project]
 name = "opendartmcp"
 version = "0.1.0"
-description = "Open DART API MCP server"
+description = "OpenDART API MCP Server — Korean stock disclosure data via Model Context Protocol"
+readme = "README.md"
 requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "gyeongmin100", email = "hopekmb1196@gmail.com" },
+]
+keywords = ["mcp", "opendart", "dart", "korea", "stock", "disclosure", "llm", "claude"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "mcp[cli]>=1.0.0",
     "httpx>=0.27.0",
     "xmltodict>=0.13.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/gyeongmin100/Open-Dart-MCP"
+Repository = "https://github.com/gyeongmin100/Open-Dart-MCP"
 
 [project.scripts]
 opendartmcp = "opendartmcp.server:main"
