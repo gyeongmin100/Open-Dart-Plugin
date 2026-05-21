@@ -33,16 +33,6 @@ from __future__ import annotations
 #   apiId=2020017: /prvsrpCptalUseDtls.json     (사모자금 사용내역)
 #   apiId=2026001: /hmvAuditIndvdlBySttusV2.json (이사·감사 개인별 보수현황 Ver 2.0)
 #   apiId=2026002: /indvdlByPayV2.json          (개인별 보수지급 금액 Ver 2.0)
-#
-# 확인 필요 (DS002 공식 목록에 없어 추정된 엔드포인트):
-#   get_audit_hours           → /adtAdtorHrsSttus.json
-#   get_related_party_transactions → /spclReltrTrnsctn.json
-#   get_private_equity_fund   → /priFinVhclSttus.json
-#   get_customer_deposits     → /custDpstSttus.json
-#   get_credit_extension      → /crdtGrnItmSttus.json
-#   get_stockholder_meeting   → /vtrRghtSttus.json
-#   get_insider_trading       → /exctvMjrStkholdrSpclStckPssrpSttus.json
-#   get_foreign_investment    → /frgnInvstSttus.json
 
 from mcp.server.fastmcp import FastMCP
 
@@ -336,46 +326,6 @@ def register(mcp: FastMCP, client: DartClient) -> None:
         })
 
     @mcp.tool()
-    async def get_audit_hours(
-        corp_code: str,
-        bsns_year: str,
-        reprt_code: str,
-    ) -> dict:
-        """감사인의 감사시간 현황을 조회합니다.
-        (확인 필요: DS002 공식 목록 외 추정 엔드포인트 사용)
-
-        Args:
-            corp_code: DART 기업 고유번호 (8자리)
-            bsns_year: 사업연도 (YYYY, 예: "2023")
-            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
-        """
-        return await client.get_json("/adtAdtorHrsSttus.json", {
-            "corp_code": corp_code,
-            "bsns_year": bsns_year,
-            "reprt_code": reprt_code,
-        })
-
-    @mcp.tool()
-    async def get_related_party_transactions(
-        corp_code: str,
-        bsns_year: str,
-        reprt_code: str,
-    ) -> dict:
-        """특수관계인과의 거래내용을 조회합니다.
-        (확인 필요: DS002 공식 목록 외 추정 엔드포인트 사용)
-
-        Args:
-            corp_code: DART 기업 고유번호 (8자리)
-            bsns_year: 사업연도 (YYYY, 예: "2023")
-            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
-        """
-        return await client.get_json("/spclReltrTrnsctn.json", {
-            "corp_code": corp_code,
-            "bsns_year": bsns_year,
-            "reprt_code": reprt_code,
-        })
-
-    @mcp.tool()
     async def get_bond_issuance(
         corp_code: str,
         bsns_year: str,
@@ -471,126 +421,6 @@ def register(mcp: FastMCP, client: DartClient) -> None:
         })
 
     @mcp.tool()
-    async def get_private_equity_fund(
-        corp_code: str,
-        bsns_year: str,
-        reprt_code: str,
-    ) -> dict:
-        """사모펀드 현황을 조회합니다.
-        (확인 필요: DS002 공식 목록 외 추정 엔드포인트 사용)
-
-        Args:
-            corp_code: DART 기업 고유번호 (8자리)
-            bsns_year: 사업연도 (YYYY, 예: "2023")
-            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
-        """
-        return await client.get_json("/priFinVhclSttus.json", {
-            "corp_code": corp_code,
-            "bsns_year": bsns_year,
-            "reprt_code": reprt_code,
-        })
-
-    @mcp.tool()
-    async def get_customer_deposits(
-        corp_code: str,
-        bsns_year: str,
-        reprt_code: str,
-    ) -> dict:
-        """고객예탁금 등 현황을 조회합니다 (금융회사).
-        (확인 필요: DS002 공식 목록 외 추정 엔드포인트 사용)
-
-        Args:
-            corp_code: DART 기업 고유번호 (8자리)
-            bsns_year: 사업연도 (YYYY, 예: "2023")
-            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
-        """
-        return await client.get_json("/custDpstSttus.json", {
-            "corp_code": corp_code,
-            "bsns_year": bsns_year,
-            "reprt_code": reprt_code,
-        })
-
-    @mcp.tool()
-    async def get_credit_extension(
-        corp_code: str,
-        bsns_year: str,
-        reprt_code: str,
-    ) -> dict:
-        """신용공여 현황을 조회합니다 (금융회사).
-        (확인 필요: DS002 공식 목록 외 추정 엔드포인트 사용)
-
-        Args:
-            corp_code: DART 기업 고유번호 (8자리)
-            bsns_year: 사업연도 (YYYY, 예: "2023")
-            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
-        """
-        return await client.get_json("/crdtGrnItmSttus.json", {
-            "corp_code": corp_code,
-            "bsns_year": bsns_year,
-            "reprt_code": reprt_code,
-        })
-
-    @mcp.tool()
-    async def get_stockholder_meeting(
-        corp_code: str,
-        bsns_year: str,
-        reprt_code: str,
-    ) -> dict:
-        """의결권 현황을 조회합니다.
-        (확인 필요: DS002 공식 목록 외 추정 엔드포인트 사용)
-
-        Args:
-            corp_code: DART 기업 고유번호 (8자리)
-            bsns_year: 사업연도 (YYYY, 예: "2023")
-            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
-        """
-        return await client.get_json("/vtrRghtSttus.json", {
-            "corp_code": corp_code,
-            "bsns_year": bsns_year,
-            "reprt_code": reprt_code,
-        })
-
-    @mcp.tool()
-    async def get_insider_trading(
-        corp_code: str,
-        bsns_year: str,
-        reprt_code: str,
-    ) -> dict:
-        """임원·주요주주 특정증권 소유 현황을 조회합니다.
-        (확인 필요: DS002 공식 목록 외 추정 엔드포인트 사용)
-
-        Args:
-            corp_code: DART 기업 고유번호 (8자리)
-            bsns_year: 사업연도 (YYYY, 예: "2023")
-            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
-        """
-        return await client.get_json("/exctvMjrStkholdrSpclStckPssrpSttus.json", {
-            "corp_code": corp_code,
-            "bsns_year": bsns_year,
-            "reprt_code": reprt_code,
-        })
-
-    @mcp.tool()
-    async def get_foreign_investment(
-        corp_code: str,
-        bsns_year: str,
-        reprt_code: str,
-    ) -> dict:
-        """외국인 지분율 현황을 조회합니다.
-        (확인 필요: DS002 공식 목록 외 추정 엔드포인트 사용)
-
-        Args:
-            corp_code: DART 기업 고유번호 (8자리)
-            bsns_year: 사업연도 (YYYY, 예: "2023")
-            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
-        """
-        return await client.get_json("/frgnInvstSttus.json", {
-            "corp_code": corp_code,
-            "bsns_year": bsns_year,
-            "reprt_code": reprt_code,
-        })
-
-    @mcp.tool()
     async def get_unregistered_executives(
         corp_code: str,
         bsns_year: str,
@@ -623,6 +453,139 @@ def register(mcp: FastMCP, client: DartClient) -> None:
             reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
         """
         return await client.get_json("/indvdlByPayV2.json", {
+            "corp_code": corp_code,
+            "bsns_year": bsns_year,
+            "reprt_code": reprt_code,
+        })
+
+    @mcp.tool()
+    async def get_stock_total_qty(
+        corp_code: str,
+        bsns_year: str,
+        reprt_code: str,
+    ) -> dict:
+        """주식의 총수 현황을 조회합니다.
+
+        Args:
+            corp_code: DART 기업 고유번호 (8자리)
+            bsns_year: 사업연도 (YYYY, 예: "2023")
+            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
+        """
+        return await client.get_json("/stockTotqySttus.json", {
+            "corp_code": corp_code,
+            "bsns_year": bsns_year,
+            "reprt_code": reprt_code,
+        })
+
+    @mcp.tool()
+    async def get_corp_bond_outstanding(
+        corp_code: str,
+        bsns_year: str,
+        reprt_code: str,
+    ) -> dict:
+        """회사채 미상환 잔액을 조회합니다.
+
+        Args:
+            corp_code: DART 기업 고유번호 (8자리)
+            bsns_year: 사업연도 (YYYY, 예: "2023")
+            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
+        """
+        return await client.get_json("/cprndNrdmpBlce.json", {
+            "corp_code": corp_code,
+            "bsns_year": bsns_year,
+            "reprt_code": reprt_code,
+        })
+
+    @mcp.tool()
+    async def get_outside_director_changes(
+        corp_code: str,
+        bsns_year: str,
+        reprt_code: str,
+    ) -> dict:
+        """사외이사 및 변동현황을 조회합니다.
+
+        Args:
+            corp_code: DART 기업 고유번호 (8자리)
+            bsns_year: 사업연도 (YYYY, 예: "2023")
+            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
+        """
+        return await client.get_json("/outcmpnyDrctrNdChangeSttus.json", {
+            "corp_code": corp_code,
+            "bsns_year": bsns_year,
+            "reprt_code": reprt_code,
+        })
+
+    @mcp.tool()
+    async def get_executive_compensation_gmtsck(
+        corp_code: str,
+        bsns_year: str,
+        reprt_code: str,
+    ) -> dict:
+        """이사·감사 전체 보수현황 (주총승인금액)을 조회합니다.
+
+        Args:
+            corp_code: DART 기업 고유번호 (8자리)
+            bsns_year: 사업연도 (YYYY, 예: "2023")
+            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
+        """
+        return await client.get_json("/drctrAdtAllMendngSttusGmtsckConfmAmount.json", {
+            "corp_code": corp_code,
+            "bsns_year": bsns_year,
+            "reprt_code": reprt_code,
+        })
+
+    @mcp.tool()
+    async def get_executive_compensation_type(
+        corp_code: str,
+        bsns_year: str,
+        reprt_code: str,
+    ) -> dict:
+        """이사·감사 전체 보수현황 (유형별)을 조회합니다.
+
+        Args:
+            corp_code: DART 기업 고유번호 (8자리)
+            bsns_year: 사업연도 (YYYY, 예: "2023")
+            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
+        """
+        return await client.get_json("/drctrAdtAllMendngSttusMendngPymntamtTyCl.json", {
+            "corp_code": corp_code,
+            "bsns_year": bsns_year,
+            "reprt_code": reprt_code,
+        })
+
+    @mcp.tool()
+    async def get_public_offering_fund_usage(
+        corp_code: str,
+        bsns_year: str,
+        reprt_code: str,
+    ) -> dict:
+        """공모자금 사용내역을 조회합니다.
+
+        Args:
+            corp_code: DART 기업 고유번호 (8자리)
+            bsns_year: 사업연도 (YYYY, 예: "2023")
+            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
+        """
+        return await client.get_json("/pssrpCptalUseDtls.json", {
+            "corp_code": corp_code,
+            "bsns_year": bsns_year,
+            "reprt_code": reprt_code,
+        })
+
+    @mcp.tool()
+    async def get_private_placement_fund_usage(
+        corp_code: str,
+        bsns_year: str,
+        reprt_code: str,
+    ) -> dict:
+        """사모자금 사용내역을 조회합니다.
+
+        Args:
+            corp_code: DART 기업 고유번호 (8자리)
+            bsns_year: 사업연도 (YYYY, 예: "2023")
+            reprt_code: 보고서 코드 ("11011"=사업보고서, "11012"=반기, "11013"=1분기, "11014"=3분기)
+        """
+        return await client.get_json("/prvsrpCptalUseDtls.json", {
             "corp_code": corp_code,
             "bsns_year": bsns_year,
             "reprt_code": reprt_code,
