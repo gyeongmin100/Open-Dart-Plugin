@@ -1,7 +1,7 @@
 import os
 from mcp.server.fastmcp import FastMCP
 from opendartmcp.client import DartClient
-from opendartmcp.tools import disclosure
+from opendartmcp.tools import disclosure, financial
 
 
 def create_server() -> FastMCP:
@@ -13,7 +13,7 @@ def create_server() -> FastMCP:
     mcp = FastMCP("open-dart")
 
     disclosure.register(mcp, client)
-    # TODO: 나머지 모듈 추가 예정
+    financial.register(mcp, client)
 
     return mcp
 
