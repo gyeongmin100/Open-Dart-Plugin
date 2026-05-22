@@ -24,7 +24,7 @@ Query Korean stock disclosures, financial statements, shareholder reports, and m
 # pip
 pip install opendart-mcp-server
 
-# uvx (MCP 설정에서 직접 사용 — 별도 설치 불필요)
+# uvx
 uvx --from opendart-mcp-server opendartmcp
 ```
 
