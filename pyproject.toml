@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "opendart-mcp-server"
-version = "1.0.3"
-description = "OpenDART API MCP Server — Korean stock disclosure data via Model Context Protocol"
+version = "1.0.4"
+description = "OpenDART API MCP Server - 85 Korean disclosure and financial data tools via Model Context Protocol"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }

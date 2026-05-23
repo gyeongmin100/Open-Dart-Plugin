@@ -7,7 +7,7 @@
 MCP server for South Korea's [OpenDART API](https://opendart.fss.or.kr) (금융감독원 전자공시).  
 Query Korean stock disclosures, financial statements, shareholder reports, and more — directly from any MCP-compatible client.
 
-**83 tools** across 6 API groups (DS001–DS006).
+**85 tools** across 6 API groups (DS001–DS006).
 
 ---
 
@@ -81,7 +81,7 @@ SK하이닉스 배당 이력 알려줘
 
 ---
 
-## Tools (83개)
+## Tools (85개)
 
 ### DS001 · 공시정보 (4)
 
@@ -97,7 +97,7 @@ SK하이닉스 배당 이력 알려줘
 
 </details>
 
-### DS002 · 정기보고서 주요정보 (28)
+### DS002 · 정기보고서 주요정보 (30)
 
 <details>
 <summary>목록 펼치기</summary>
@@ -115,6 +115,8 @@ SK하이닉스 배당 이력 알려줘
 | `get_executive_compensation_total` | 이사·감사 전체의 보수현황 |
 | `get_executive_compensation_gmtsck` | 이사·감사 전체 보수현황 (주총승인금액) |
 | `get_executive_compensation_type` | 이사·감사 전체 보수현황 (유형별) |
+| `get_executive_compensation_individual` | 이사·감사 개인별 보수현황 5억원 이상 |
+| `get_individual_pay_over5` | 개인별 보수지급 금액 5억 이상 상위 5인 |
 | `get_executive_compensation_individual_v2` | 이사·감사 개인별 보수현황 5억원 이상 (V2) |
 | `get_individual_pay_over5_v2` | 개인별 보수지급 금액 상위 5인 (V2) |
 | `get_unregistered_executives` | 미등기임원 보수현황 |
