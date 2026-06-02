@@ -68,21 +68,7 @@ opendartmcp config clear-api-key
 
 ### 방법 2. 환경 변수로 설정
 
-MCP 클라이언트 설정, Docker, CI 환경에서는 `DART_API_KEY` 환경 변수를 사용할 수 있습니다.
-
-```json
-{
-  "mcpServers": {
-    "open-dart": {
-      "command": "uvx",
-      "args": ["--from", "opendart-mcp-server", "opendartmcp"],
-      "env": {
-        "DART_API_KEY": "your-api-key-here"
-      }
-    }
-  }
-}
-```
+MCP 클라이언트 설정, Docker, CI 환경에서는 `DART_API_KEY` 환경 변수를 사용할 수 있습니다. MCP 클라이언트에 직접 키를 전달하는 예시는 아래 `MCP 설정`을 참고하세요.
 
 > CLI로 등록한 키와 `DART_API_KEY`가 모두 있으면 환경 변수 값이 우선 적용됩니다.
 
@@ -112,6 +98,24 @@ MCP 클라이언트 설정, Docker, CI 환경에서는 `DART_API_KEY` 환경 변
     "open-dart": {
       "command": "uvx",
       "args": ["--from", "opendart-mcp-server", "opendartmcp"]
+    }
+  }
+}
+```
+
+### 환경 변수를 함께 설정하는 경우
+
+API 키를 MCP 클라이언트 설정에서 직접 전달하려면 실행 방식에 맞는 설정에 `env`를 추가하세요.
+
+```json
+{
+  "mcpServers": {
+    "open-dart": {
+      "command": "uvx",
+      "args": ["--from", "opendart-mcp-server", "opendartmcp"],
+      "env": {
+        "DART_API_KEY": "your-api-key-here"
+      }
     }
   }
 }
