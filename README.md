@@ -4,106 +4,108 @@
 [![Python](https://img.shields.io/pypi/pyversions/opendart-mcp-server)](https://pypi.org/project/opendart-mcp-server/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-MCP server for South Korea's [OpenDART API](https://opendart.fss.or.kr) (금융감독원 전자공시).  
-Query Korean stock disclosures, financial statements, shareholder reports, and more — directly from any MCP-compatible client.
+[OpenDART API](https://opendart.fss.or.kr)를 MCP 클라이언트에서 사용할 수 있게 해주는 서버입니다.
+기업 공시, 재무제표, 주주 현황 등 금융감독원 전자공시 데이터를 자연어로 조회할 수 있습니다.
 
-**85 tools** across 6 API groups (DS001–DS006).
+DS001부터 DS006까지 6개 API 그룹의 **85개 도구**를 제공합니다.
 
 ---
 
-## Requirements
+## 요구 사항
 
 - Python 3.11+
-- OpenDART API key → [opendart.fss.or.kr](https://opendart.fss.or.kr) 에서 발급
+- OpenDART API 키: [OpenDART](https://opendart.fss.or.kr)에서 발급
 
 ---
 
-## Installation
+## 설치
+
+패키지를 설치하거나 `uvx`로 바로 실행할 수 있습니다.
+
+### 방법 1. 패키지 설치
 
 ```bash
-# pip
 pip install opendart-mcp-server
+# 또는
+uv tool install opendart-mcp-server
+```
 
-# uvx
+설치 후에는 `opendartmcp` 명령을 사용합니다.
+
+### 방법 2. uvx로 바로 실행
+
+```bash
 uvx --from opendart-mcp-server opendartmcp
+```
+
+설치하지 않고 CLI 하위 명령을 실행할 때도 같은 접두사를 사용합니다.
+
+```bash
+uvx --from opendart-mcp-server opendartmcp <command>
 ```
 
 ---
 
 ## API 키 설정
 
-API 키는 아래 두 방법 중 하나로만 설정하면 됩니다.
-일반 사용자는 CLI 방식을 권장합니다.
+아래 방법 중 하나를 선택하세요. 일반적인 로컬 환경에서는 CLI 등록 방식을 권장합니다.
 
-1. CLI로 설정하기
+### 방법 1. CLI로 등록
 
-   터미널에서 아래 명령을 실행한 뒤, 발급받은 OpenDART API 키를 입력하세요.
-   입력 중에는 보안을 위해 화면에 키가 표시되지 않을 수 있습니다.
+```bash
+opendartmcp config set-api-key
+```
 
-   ```bash
-   opendartmcp config set-api-key
-   ```
+입력한 API 키는 화면에 표시되지 않습니다. 등록 상태 확인, 인증 테스트, 삭제도 CLI에서 처리할 수 있습니다.
 
-   등록된 키 확인:
+```bash
+opendartmcp config show
+opendartmcp config test
+opendartmcp config clear-api-key
+```
 
-   ```bash
-   opendartmcp config show
-   ```
+패키지를 설치하지 않았다면 각 명령 앞에 `uvx --from opendart-mcp-server`를 붙이세요.
 
-   OpenDART 인증 확인:
+### 방법 2. 환경 변수로 설정
 
-   ```bash
-   opendartmcp config test
-   ```
+MCP 클라이언트 설정, Docker, CI 환경에서는 `DART_API_KEY` 환경 변수를 사용할 수 있습니다.
 
-   저장된 키 삭제:
-
-   ```bash
-   opendartmcp config clear-api-key
-   ```
-
-2. 환경변수로 설정하기
-
-   Docker, CI, MCP 클라이언트 설정에서 직접 API 키를 주입하고 싶다면 `DART_API_KEY` 환경변수를 사용할 수 있습니다.
-   CLI 설정과 환경변수 설정을 둘 다 할 필요는 없습니다.
-
-   ```json
-   {
-     "mcpServers": {
-       "open-dart": {
-         "command": "uvx",
-         "args": ["--from", "opendart-mcp-server", "opendartmcp"],
-         "env": {
-           "DART_API_KEY": "your-api-key-here"
-         }
-       }
-     }
-   }
-   ```
-
-   CLI로 저장한 API 키와 `DART_API_KEY`가 모두 있으면 `DART_API_KEY`가 우선 적용됩니다.
-
----
-
-## MCP 설정
-
-MCP를 지원하는 클라이언트에서 공통으로 사용할 수 있는 설정입니다.
-
-설정 파일에 아래 내용을 추가하세요:
-
-**pip:**
 ```json
 {
   "mcpServers": {
     "open-dart": {
-      "command": "python",
-      "args": ["-m", "opendartmcp.server"]
+      "command": "uvx",
+      "args": ["--from", "opendart-mcp-server", "opendartmcp"],
+      "env": {
+        "DART_API_KEY": "your-api-key-here"
+      }
     }
   }
 }
 ```
 
-**uvx:**
+> CLI로 등록한 키와 `DART_API_KEY`가 모두 있으면 환경 변수 값이 우선 적용됩니다.
+
+---
+
+## MCP 설정
+
+사용 중인 MCP 클라이언트의 설정 파일에 아래 내용을 추가하세요.
+
+### 패키지를 설치한 경우
+
+```json
+{
+  "mcpServers": {
+    "open-dart": {
+      "command": "opendartmcp"
+    }
+  }
+}
+```
+
+### uvx로 바로 실행하는 경우
+
 ```json
 {
   "mcpServers": {
@@ -130,7 +132,7 @@ SK하이닉스 배당 이력 알려줘
 
 ---
 
-## Tools (85개)
+## 제공 도구 (85개)
 
 ### DS001 · 공시정보 (4)
 
@@ -285,6 +287,6 @@ SK하이닉스 배당 이력 알려줘
 
 ---
 
-## License
+## 라이선스
 
 MIT
