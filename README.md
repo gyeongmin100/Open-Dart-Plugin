@@ -293,4 +293,4 @@ SK하이닉스 배당 이력 알려줘
 
 ## 라이선스
 
-MIT
+MIT License. See [LICENSE](LICENSE).
