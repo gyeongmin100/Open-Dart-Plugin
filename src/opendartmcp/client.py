@@ -34,6 +34,46 @@ class DartClient:
             raise DartApiError(status, message)
         return data
 
+    async def get_zip_text(self, path: str, params: dict) -> dict:
+        params = {**params, "crtfc_key": self.api_key}
+        response = await self._http.get(path, params=params)
+        response.raise_for_status()
+        content = response.content
+        try:
+            with zipfile.ZipFile(io.BytesIO(content)) as zf:
+                document_names = [
+                    name for name in zf.namelist()
+                    if name.lower().endswith((".xml", ".html", ".htm"))
+                ]
+                if not document_names:
+                    raise ValueError("ZIP response does not contain a document file.")
+                document_names.sort(key=lambda name: (not name.lower().endswith(".xml"), name))
+                filename = document_names[0]
+                with zf.open(filename) as document_file:
+                    raw_content = document_file.read()
+        except zipfile.BadZipFile:
+            try:
+                error_data = response.json()
+                status = error_data.get("status", "999")
+                message = error_data.get("message", "")
+                raise DartApiError(status, message)
+            except (ValueError, KeyError):
+                raise DartApiError("999", "ZIP response could not be parsed.")
+
+        return {
+            "filename": filename,
+            "content": self._decode_document(raw_content),
+        }
+
+    @staticmethod
+    def _decode_document(content: bytes) -> str:
+        for encoding in ("utf-8", "cp949", "euc-kr"):
+            try:
+                return content.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        return content.decode("utf-8", errors="replace")
+
     async def get_zip_xml(self, path: str, params: dict) -> dict:
         params = {**params, "crtfc_key": self.api_key}
         response = await self._http.get(path, params=params)
