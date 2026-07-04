@@ -1,4 +1,5 @@
 import io
+import re
 import zipfile
 
 import httpx
@@ -34,7 +35,8 @@ class DartClient:
             raise DartApiError(status, message)
         return data
 
-    async def get_zip_text(self, path: str, params: dict) -> dict:
+    async def get_zip_text(self, path: str, params: dict,
+                           doc_name: str | None = None) -> dict:
         params = {**params, "crtfc_key": self.api_key}
         response = await self._http.get(path, params=params)
         response.raise_for_status()
@@ -48,9 +50,22 @@ class DartClient:
                 if not document_names:
                     raise ValueError("ZIP response does not contain a document file.")
                 document_names.sort(key=lambda name: (not name.lower().endswith(".xml"), name))
-                filename = document_names[0]
+                if doc_name:
+                    if doc_name not in document_names:
+                        raise DartApiError(
+                            "999",
+                            f"'{doc_name}' is not in this disclosure. "
+                            f"Available: {document_names}",
+                        )
+                    filename = doc_name
+                else:
+                    filename = document_names[0]
                 with zf.open(filename) as document_file:
                     raw_content = document_file.read()
+                documents = [
+                    {"filename": name, "title": self._document_title(zf, name)}
+                    for name in document_names
+                ]
         except zipfile.BadZipFile:
             try:
                 error_data = response.json()
@@ -63,7 +78,17 @@ class DartClient:
         return {
             "filename": filename,
             "content": self._decode_document(raw_content),
+            "documents": documents,
         }
+
+    @staticmethod
+    def _document_title(zf: "zipfile.ZipFile", name: str) -> str:
+        """문서 머리의 <DOCUMENT-NAME>에서 제목 추출 (예: 감사보고서)."""
+        with zf.open(name) as document_file:
+            head = document_file.read(4096)
+        text = DartClient._decode_document(head)
+        match = re.search(r"<DOCUMENT-NAME[^>]*>([^<]*)", text)
+        return match.group(1).strip() if match else ""
 
     @staticmethod
     def _decode_document(content: bytes) -> str:

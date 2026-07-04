@@ -60,13 +60,21 @@ def register(mcp: FastMCP, client: DartClient) -> None:
         return await client.get_json("/company.json", {"corp_code": corp_code})
 
     @mcp.tool()
-    async def get_disclosure_document(rcept_no: str) -> dict:
+    async def get_disclosure_document(rcept_no: str, doc_name: str = "") -> dict:
         """공시서류의 원문을 조회합니다. 접수번호로 특정 공시 문서를 가져옵니다.
+
+        하나의 공시에는 본문 외에 첨부 문서(감사보고서, 연결감사보고서 등)가
+        포함될 수 있습니다. doc_name 없이 호출하면 본문을 반환하며, 결과의
+        `documents` 목록에서 첨부 파일명과 제목을 확인한 뒤 doc_name으로
+        특정 첨부를 다시 요청할 수 있습니다.
 
         Args:
             rcept_no: 접수번호 (14자리, 필수)
+            doc_name: 가져올 문서 파일명 (선택, `documents`의 filename 값.
+                생략 시 본문)
         """
-        return await client.get_zip_text("/document.xml", {"rcept_no": rcept_no})
+        return await client.get_zip_text(
+            "/document.xml", {"rcept_no": rcept_no}, doc_name=doc_name or None)
 
     @mcp.tool()
     async def get_corp_codes() -> dict:
