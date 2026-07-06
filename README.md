@@ -28,7 +28,7 @@
 
 ```text
 /plugin marketplace add gyeongmin100/Open-Dart-Plugin
-/plugin install opendart@open-dart-mcp
+/plugin install opendart@open-dart-plugin
 ```
 
 설치 중 `DART_API_KEY`를 입력하라는 프롬프트가 뜹니다.
@@ -70,7 +70,7 @@ OpenDART Excel 플러그인을 설치해줘.
 1. 저장소: https://github.com/gyeongmin100/Open-Dart-Plugin
 2. Claude Code라면:
    - /plugin marketplace add gyeongmin100/Open-Dart-Plugin 실행
-   - /plugin install opendart@open-dart-mcp 실행
+   - /plugin install opendart@open-dart-plugin 실행
    - 설치 중 DART_API_KEY를 물어보면, 아직 없다고 하면 https://opendart.fss.or.kr 에서
      API 키를 발급받는 방법을 안내해줘.
    Codex라면:

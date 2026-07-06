@@ -1,5 +1,5 @@
 {
-  "name": "open-dart-mcp",
+  "name": "open-dart-plugin",
   "interface": {
     "displayName": "OpenDART MCP"
   },
