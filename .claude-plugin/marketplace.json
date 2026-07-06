@@ -9,7 +9,7 @@
     {
       "name": "opendart",
       "source": "./plugins/claude/opendart",
-      "displayName": "OpenDART Excel",
+      "displayName": "OpenDART",
       "description": "Create verified financial statement Excel workbooks from OpenDART disclosures.",
       "version": "0.1.0",
       "category": "productivity",

@@ -14,7 +14,7 @@
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "OpenDART Excel",
+    "displayName": "OpenDART",
     "shortDescription": "Create verified OpenDART financial Excel workbooks.",
     "longDescription": "OpenDART Excel bundles the OpenDART MCP server with a workflow skill for generating verified financial statement Excel workbooks from DART disclosures.",
     "developerName": "gyeongmin100",

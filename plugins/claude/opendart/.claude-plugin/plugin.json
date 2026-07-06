@@ -1,6 +1,6 @@
 {
   "name": "opendart",
-  "displayName": "OpenDART Excel",
+  "displayName": "OpenDART",
   "version": "0.1.0",
   "description": "Create verified financial statement Excel workbooks from OpenDART disclosures using the bundled MCP server.",
   "author": {
