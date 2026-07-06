@@ -6,8 +6,6 @@ __pycache__/
 .pytest_cache/
 out/
 *.xlsx
-!tests/fixtures/**/*.xlsx
-!plugins/**/skills/**/tests/fixtures/**/*.xlsx
 doc.json
 model.json
 .venv/
