@@ -109,6 +109,47 @@ SK하이닉스 배당 이력 알려줘
 
 ---
 
+## 프로젝트 구조
+
+```
+opendartmcp/
+├── src/opendartmcp/              # MCP 서버 본체 (PyPI: opendart-mcp-server)
+│   ├── server.py                  # MCP 서버 엔트리포인트 + CLI (config set-api-key 등)
+│   ├── client.py                  # DartClient — OpenDART Open API 호출 래퍼
+│   ├── config.py                  # API 키 저장/조회 (CLI 등록 vs 환경변수)
+│   ├── errors.py                  # DartApiError
+│   └── tools/                     # MCP 도구 정의 — DS001~DS006 그룹별 파일
+│       ├── disclosure.py          # DS001 공시정보 (검색/기업정보/원문/고유번호검색)
+│       ├── business_report.py     # DS002 정기보고서 주요정보
+│       ├── financial.py           # DS003 재무정보
+│       ├── stock_holdings.py      # DS004 지분공시
+│       ├── major_report.py        # DS005 주요사항보고서
+│       └── securities.py          # DS006 증권신고서
+│
+├── plugins/                       # Claude Code / Codex 플러그인 소스
+│   ├── claude/opendart/           # Claude Code용 (.claude-plugin/plugin.json)
+│   └── codex/opendart/            # Codex용 (.codex-plugin/plugin.json)
+│       ├── .mcp.json              # 플러그인이 MCP 서버를 실행하는 설정
+│       └── skills/opendart-excel/
+│           ├── SKILL.md                        # 엑셀 생성 스킬 지침서 (에이전트가 읽고 따름)
+│           ├── requirements.txt                # beautifulsoup4, lxml, openpyxl
+│           └── scripts/
+│               ├── dartdoc.py                  # DART 원문 XML/HTML 파서
+│               ├── prepare_notes_json.py       # 원문 → 중간 모델 JSON 변환
+│               ├── build_financial_excel.py    # 모델 JSON → Excel 워크북 생성
+│               ├── verify_workbook.py          # 생성된 Excel 자동 검증
+│               ├── create_workbook_from_mcp.py # 위 세 단계를 한 번에 실행 (원스텝, 권장)
+│               └── _ensure_deps.py             # 의존성 자동 설치 헬퍼
+│
+├── .claude-plugin/marketplace.json    # Claude Code 마켓플레이스 정의
+├── .agents/plugins/marketplace.json   # Codex 마켓플레이스 정의
+├── .github/workflows/publish.yml      # GitHub Release 생성 시 PyPI 자동 배포
+├── pyproject.toml                     # opendart-mcp-server 패키지 빌드 설정
+└── sample.png                         # README 예시 이미지
+```
+
+---
+
 ## 제공 도구 (85개)
 
 ### DS001 · 공시정보 (4)
