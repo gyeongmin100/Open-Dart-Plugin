@@ -67,7 +67,7 @@ $opendart 삼성전자 2023년 연결 재무제표를 엑셀로 만들어줘
 아래 블록을 그대로 복사해서 Claude Code나 Codex 채팅창에 붙여넣으면, 에이전트가 알아서 marketplace 등록 → 플러그인 설치 → API 키 설정까지 진행합니다.
 
 ```text
-OpenDART Excel 플러그인을 설치해줘.
+OpenDART 플러그인을 설치해줘.
 
 1. 저장소: https://github.com/gyeongmin100/Open-Dart-Plugin
 2. Claude Code라면:
