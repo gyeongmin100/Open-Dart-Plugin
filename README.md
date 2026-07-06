@@ -1,4 +1,4 @@
-# OpenDART Excel Plugin
+# OpenDART Plugin
 
 [![PyPI version](https://img.shields.io/pypi/v/opendart-mcp-server)](https://pypi.org/project/opendart-mcp-server/)
 [![Python](https://img.shields.io/pypi/pyversions/opendart-mcp-server)](https://pypi.org/project/opendart-mcp-server/)
