@@ -25,8 +25,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/gyeongmin100/Open-Dart-MCP"
-Repository = "https://github.com/gyeongmin100/Open-Dart-MCP"
+Homepage = "https://github.com/gyeongmin100/Open-Dart-Plugin"
+Repository = "https://github.com/gyeongmin100/Open-Dart-Plugin"
 
 [project.scripts]
 opendartmcp = "opendartmcp.server:main"
