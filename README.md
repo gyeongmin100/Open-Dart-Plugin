@@ -4,7 +4,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/opendart-mcp-server)](https://pypi.org/project/opendart-mcp-server/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-[OpenDART API](https://opendart.fss.or.kr)(금융감독원 전자공시시스템 오픈API)를 이용해, 특정 기업의 재무제표를  **Excel 파일**로 만들어주는 **Claude Code / Codex 플러그인**입니다.
+[OpenDART API](https://opendart.fss.or.kr)(금융감독원 전자공시시스템 오픈API)를 이용해 **MCP 서버**를 만들고, 특정 기업의 재무제표를  **Excel 파일**로 만들어주는 SKILL을 포함한 **Claude Code / Codex 플러그인**입니다.
 
 - "삼성전자 2023년 연결재무제표 엑셀로 만들어줘" 한마디로 **재무제표 원문(감사보고서)을 가져와 시트별로 정리하고, 각 주석번호에 하이퍼링크**까지 걸린 `.xlsx` 파일을 생성합니다.
 - 공시 검색, 재무제표, 임원/주주 현황, 주요사항보고서 등 DS001~DS006 전 영역 **85개 도구**도 자연어 질의로 바로 사용할 수 있습니다.
