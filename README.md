@@ -323,8 +323,4 @@ DART_API_KEY=your-api-key-here
 
 </details>
 
----
 
-## 라이선스
-
-MIT License. See [LICENSE](LICENSE).
