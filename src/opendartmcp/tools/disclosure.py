@@ -5,6 +5,32 @@ from mcp.server.fastmcp import FastMCP
 from opendartmcp.client import DartClient
 
 
+def _filter_corps(
+    corps: list[dict], corp_name: str, stock_code: str, limit: int = 50
+) -> dict:
+    name_q = corp_name.strip().lower()
+    code_q = stock_code.strip()
+    matches = []
+    for c in corps:
+        if code_q:
+            sc = (c.get("stock_code") or "").strip()
+            if sc != code_q:
+                continue
+        if name_q:
+            cn = (c.get("corp_name") or "").lower()
+            en = (c.get("corp_eng_name") or "").lower()
+            if name_q not in cn and name_q not in en:
+                continue
+        matches.append(c)
+    total = len(matches)
+    return {
+        "count": total,
+        "returned": min(total, limit),
+        "list": matches[:limit],
+        "truncated": total > limit,
+    }
+
+
 def register(mcp: FastMCP, client: DartClient) -> None:
     @mcp.tool()
     async def search_disclosures(
@@ -77,9 +103,25 @@ def register(mcp: FastMCP, client: DartClient) -> None:
             "/document.xml", {"rcept_no": rcept_no}, doc_name=doc_name or None)
 
     @mcp.tool()
-    async def get_corp_codes() -> dict:
-        """DART에 등록된 모든 기업의 고유번호 목록을 조회합니다.
+    async def get_corp_codes(corp_name: str = "", stock_code: str = "") -> dict:
+        """기업명 또는 종목코드로 DART 고유번호(corp_code)를 검색합니다.
 
-        ZIP 압축 XML 파일로 반환됩니다. 기업명으로 corp_code를 찾을 때 사용하세요.
+        DART 오픈API는 회사명 검색을 지원하지 않으므로, 전체 고유번호 목록을
+        내려받아 서버에서 필터링합니다. corp_name 또는 stock_code 중 최소
+        하나를 지정해야 합니다 — 둘 다 생략하면 검색하지 않습니다(전체 목록은
+        11만 건 이상이라 반환하지 않습니다).
+
+        Args:
+            corp_name: 회사명 부분일치 (한글 또는 영문, 대소문자 무시)
+            stock_code: 상장사 종목코드 6자리 (예: "000660") 정확히 일치
         """
-        return await client.get_zip_xml("/corpCode.xml", {})
+        if not corp_name.strip() and not stock_code.strip():
+            return {
+                "error": "corp_name 또는 stock_code 중 하나 이상을 지정하세요.",
+                "hint": "회사명(부분일치) 또는 종목코드(6자리)로 검색합니다.",
+            }
+        data = await client.get_zip_xml("/corpCode.xml", {})
+        corps = data.get("result", {}).get("list", [])
+        if isinstance(corps, dict):
+            corps = [corps]
+        return _filter_corps(corps, corp_name, stock_code)

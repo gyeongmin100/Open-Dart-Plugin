@@ -119,7 +119,7 @@ SK하이닉스 배당 이력 알려줘
 | `search_disclosures` | 공시 목록 검색 |
 | `get_company_info` | 기업 기본정보 조회 |
 | `get_disclosure_document` | 공시 원문 문서 조회 |
-| `get_corp_codes` | 전체 법인코드 목록 다운로드 |
+| `get_corp_codes` | 회사명/종목코드로 법인 고유번호(corp_code) 검색 |
 
 </details>
 
