@@ -1,124 +1,85 @@
-# OpenDART MCP Server
+# OpenDART Excel Plugin
 
 [![PyPI version](https://img.shields.io/pypi/v/opendart-mcp-server)](https://pypi.org/project/opendart-mcp-server/)
 [![Python](https://img.shields.io/pypi/pyversions/opendart-mcp-server)](https://pypi.org/project/opendart-mcp-server/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-[OpenDART API](https://opendart.fss.or.kr)를 MCP 클라이언트에서 사용할 수 있게 해주는 서버입니다.
-기업 공시, 재무제표, 주주 현황 등 금융감독원 전자공시 데이터를 자연어로 조회할 수 있습니다.
+[OpenDART API](https://opendart.fss.or.kr)(금융감독원 전자공시시스템 오픈API)를 이용해, 특정 기업의 재무제표를  **Excel 파일**로 만들어주는 **Claude Code / Codex 플러그인**입니다.
 
-DS001부터 DS006까지 6개 API 그룹의 **85개 도구**를 제공합니다.
+- "삼성전자 2023년 연결재무제표 엑셀로 만들어줘" 한마디로 **재무제표 원문(감사보고서)을 가져와 시트별로 정리하고, 각 주석번호에 하이퍼링크**까지 걸린 `.xlsx` 파일을 생성합니다.
+- 공시 검색, 재무제표, 임원/주주 현황, 주요사항보고서 등 DS001~DS006 전 영역 **85개 도구**도 자연어 질의로 바로 사용할 수 있습니다.
 
 ---
 
-## 요구 사항
+## 준비물
 
+- Claude Code 또는 Codex CLI
 - Python 3.11+
-- OpenDART API 키: [OpenDART](https://opendart.fss.or.kr)에서 발급
+- `uv` / `uvx` ([설치](https://docs.astral.sh/uv/getting-started/installation/)) — 없다면 `pip install uv`
+- OpenDART API KEY: [OpenDART](https://opendart.fss.or.kr)에서 KEY 발급
 
 ---
 
 ## 설치
 
-패키지를 설치하거나 `uvx`로 바로 실행할 수 있습니다.
+플러그인을 설치하면 `open-dart` MCP 서버 설정과 `opendart-excel` 스킬이 함께 설치됩니다.
 
-### 방법 1. 패키지 설치
+**Claude Code**
 
-```bash
-pip install opendart-mcp-server
-# 또는
-uv tool install opendart-mcp-server
+```text
+/plugin marketplace add gyeongmin100/Open-Dart-MCP
+/plugin install opendart-excel@open-dart-mcp
 ```
 
-설치 후에는 `opendartmcp` 명령을 사용합니다.
+설치 중 `DART_API_KEY`를 입력하라는 프롬프트가 뜹니다.
 
-### 방법 2. uvx로 바로 실행
+사용 예:
 
-```bash
-uvx --from opendart-mcp-server opendartmcp
+```text
+/opendart-excel:opendart-excel 삼성전자 2023년 연결 재무제표를 엑셀로 만들어줘
 ```
 
-설치하지 않고 CLI 하위 명령을 실행할 때도 같은 접두사를 사용합니다.
+**Codex**
 
 ```bash
-uvx --from opendart-mcp-server opendartmcp <command>
+codex plugin marketplace add gyeongmin100/Open-Dart-MCP
+```
+
+Codex에서 `/plugins`를 열고 `OpenDART MCP` marketplace의 `opendart-excel` 플러그인을 설치합니다. Codex 실행 환경에는 `DART_API_KEY`가 미리 설정되어 있어야 합니다.
+
+```bash
+export DART_API_KEY="your-api-key"      # bash/zsh
+$env:DART_API_KEY="your-api-key"        # PowerShell
+```
+
+사용 예:
+
+```text
+$opendart-excel 삼성전자 2023년 연결 재무제표를 엑셀로 만들어줘
 ```
 
 ---
 
-## API 키 설정
+### AI 에이전트용 설치 프롬프트
 
-아래 방법 중 하나를 선택하세요. 일반적인 로컬 환경에서는 CLI 등록 방식을 권장합니다.
+아래 블록을 그대로 복사해서 Claude Code나 Codex 채팅창에 붙여넣으면, 에이전트가 알아서 marketplace 등록 → 플러그인 설치 → API 키 설정까지 진행합니다.
 
-### 방법 1. CLI로 등록
+```text
+OpenDART Excel 플러그인을 설치해줘.
 
-```bash
-opendartmcp config set-api-key
-```
-
-입력한 API 키는 화면에 표시되지 않습니다. 등록 상태 확인, 인증 테스트, 삭제도 CLI에서 처리할 수 있습니다.
-
-```bash
-opendartmcp config show
-opendartmcp config test
-opendartmcp config clear-api-key
-```
-
-패키지를 설치하지 않았다면 각 명령 앞에 `uvx --from opendart-mcp-server`를 붙이세요.
-
-### 방법 2. 환경 변수로 설정
-
-MCP 클라이언트 설정, Docker, CI 환경에서는 `DART_API_KEY` 환경 변수를 사용할 수 있습니다. MCP 클라이언트에 직접 키를 전달하는 예시는 아래 `MCP 설정`을 참고하세요.
-
-> CLI로 등록한 키와 `DART_API_KEY`가 모두 있으면 환경 변수 값이 우선 적용됩니다.
-
----
-
-## MCP 설정
-
-사용 중인 MCP 클라이언트의 설정 파일에 아래 내용을 추가하세요.
-
-### 패키지를 설치한 경우
-
-```json
-{
-  "mcpServers": {
-    "open-dart": {
-      "command": "opendartmcp"
-    }
-  }
-}
-```
-
-### uvx로 바로 실행하는 경우
-
-```json
-{
-  "mcpServers": {
-    "open-dart": {
-      "command": "uvx",
-      "args": ["--from", "opendart-mcp-server", "opendartmcp"]
-    }
-  }
-}
-```
-
-### 환경 변수를 함께 설정하는 경우
-
-API 키를 MCP 클라이언트 설정에서 직접 전달하려면 실행 방식에 맞는 설정에 `env`를 추가하세요.
-
-```json
-{
-  "mcpServers": {
-    "open-dart": {
-      "command": "uvx",
-      "args": ["--from", "opendart-mcp-server", "opendartmcp"],
-      "env": {
-        "DART_API_KEY": "your-api-key-here"
-      }
-    }
-  }
-}
+1. 저장소: https://github.com/gyeongmin100/Open-Dart-MCP
+2. Claude Code라면:
+   - /plugin marketplace add gyeongmin100/Open-Dart-MCP 실행
+   - /plugin install opendart-excel@open-dart-mcp 실행
+   - 설치 중 DART_API_KEY를 물어보면, 아직 없다고 하면 https://opendart.fss.or.kr 에서
+     API 키를 발급받는 방법을 안내해줘.
+   Codex라면:
+   - codex plugin marketplace add gyeongmin100/Open-Dart-MCP 실행
+   - /plugins 메뉴에서 "OpenDART MCP" marketplace의 opendart-excel 플러그인 설치 안내
+   - 실행 환경에 DART_API_KEY 환경변수가 필요하다는 것도 안내해줘.
+3. 설치가 끝나면 opendart-excel 스킬로 "삼성전자 2023년 연결재무제표 엑셀로 만들어줘" 같은
+   요청을 처리할 수 있다는 것을 확인해줘.
+4. Python 3.11+ 와 uv/uvx가 없으면 먼저 설치 방법을 안내해줘 (pip install uv).
 ```
 
 ---
@@ -132,7 +93,17 @@ API 키를 MCP 클라이언트 설정에서 직접 전달하려면 실행 방식
 LG전자 임원 현황 조회해줘
 SK하이닉스 배당 이력 알려줘
 2024년 합병 공시 목록 검색해줘
+삼성전자 2023년 연결 재무제표를 엑셀로 만들어줘   ← opendart-excel 플러그인
 ```
+
+---
+
+## opendart-excel 스킬 동작 방식
+
+1. 회사명·사업연도·범위(연결/별도)를 파악하고, 범위가 모호하면 반드시 사용자에게 확인합니다.
+2. MCP로 공시 검색 → 사업보고서(가능하면 감사보고서 첨부)의 원문을 가져옵니다.
+3. 원문을 파싱해 재무제표별 시트 + `주석` 시트로 구성된 Excel을 생성합니다. 주석번호는 표 우측 열에 개별 셀로 분리되고, 파란색 하이퍼링크로 `주석` 시트의 해당 항목으로 연결됩니다.
+4. 시트 구성·프리앰블·주석 연속성·하이퍼링크·글자 단위 완전성까지 자동 검증한 뒤, 검증을 통과한 `.xlsx` 파일만 전달합니다.
 
 ---
 
@@ -288,6 +259,69 @@ SK하이닉스 배당 이력 알려줘
 ## 주의사항
 
 - **API 일일 호출 한도**: 10,000건 (초과 시 오류 발생)
+- `opendart-excel` 스킬은 검증에 실패한 Excel 파일은 전달하지 않습니다.
+
+---
+
+<details>
+<summary><b>부록: MCP 서버만 단독 설치</b> (Claude Code/Codex 플러그인 없이, 스킬 없이 도구만 필요한 경우)</summary>
+
+플러그인 내부에서 쓰이는 MCP 서버 본체는 PyPI 패키지 `opendart-mcp-server`로 별도 배포됩니다. Claude Code/Codex가 아닌 다른 MCP 클라이언트(Claude Desktop 등)에서 85개 도구만 쓰고 싶다면 아래처럼 단독 설치할 수 있습니다.
+
+**패키지 설치**
+
+```bash
+pip install opendart-mcp-server
+# 또는
+uv tool install opendart-mcp-server
+```
+
+설치 후 `opendartmcp` 명령을 사용합니다.
+
+**uvx로 바로 실행 (설치 없이)**
+
+```bash
+uvx --from opendart-mcp-server opendartmcp
+```
+
+**API 키 설정**
+
+```bash
+# 1) CLI로 등록 (로컬 환경 권장)
+opendartmcp config set-api-key
+opendartmcp config show
+opendartmcp config test
+opendartmcp config clear-api-key
+```
+
+패키지를 설치하지 않았다면 각 명령 앞에 `uvx --from opendart-mcp-server`를 붙이세요.
+
+```bash
+# 2) 환경 변수로 설정 (MCP 클라이언트 설정, Docker, CI 환경)
+DART_API_KEY=your-api-key-here
+```
+
+> CLI로 등록한 키와 `DART_API_KEY`가 모두 있으면 환경 변수 값이 우선 적용됩니다.
+
+**MCP 클라이언트 설정**
+
+```json
+{
+  "mcpServers": {
+    "open-dart": {
+      "command": "uvx",
+      "args": ["--from", "opendart-mcp-server", "opendartmcp"],
+      "env": {
+        "DART_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+패키지를 설치했다면 `command`를 `opendartmcp` 하나로 바꿔도 됩니다.
+
+</details>
 
 ---
 

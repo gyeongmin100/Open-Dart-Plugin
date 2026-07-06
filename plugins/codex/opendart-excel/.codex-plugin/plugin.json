@@ -1,0 +1,25 @@
+{
+  "name": "opendart-excel",
+  "version": "0.1.0",
+  "description": "Create verified financial statement Excel workbooks from OpenDART disclosures using the bundled MCP server.",
+  "author": {
+    "name": "gyeongmin100",
+    "email": "hopekmb1196@gmail.com",
+    "url": "https://github.com/gyeongmin100"
+  },
+  "homepage": "https://github.com/gyeongmin100/Open-Dart-MCP",
+  "repository": "https://github.com/gyeongmin100/Open-Dart-MCP",
+  "license": "MIT",
+  "keywords": ["opendart", "dart", "korea", "finance", "excel", "mcp"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "OpenDART Excel",
+    "shortDescription": "Create verified OpenDART financial Excel workbooks.",
+    "longDescription": "OpenDART Excel bundles the OpenDART MCP server with a workflow skill for generating verified financial statement Excel workbooks from DART disclosures.",
+    "developerName": "gyeongmin100",
+    "category": "Productivity",
+    "capabilities": ["Write"],
+    "defaultPrompt": "Create an OpenDART financial statement Excel workbook."
+  }
+}

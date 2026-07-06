@@ -1,0 +1,25 @@
+{
+  "name": "open-dart-mcp",
+  "owner": {
+    "name": "gyeongmin100",
+    "email": "hopekmb1196@gmail.com"
+  },
+  "description": "OpenDART MCP and Excel workbook automation plugins for Claude Code.",
+  "plugins": [
+    {
+      "name": "opendart-excel",
+      "source": "./plugins/claude/opendart-excel",
+      "displayName": "OpenDART Excel",
+      "description": "Create verified financial statement Excel workbooks from OpenDART disclosures.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "author": {
+        "name": "gyeongmin100",
+        "email": "hopekmb1196@gmail.com"
+      },
+      "repository": "https://github.com/gyeongmin100/Open-Dart-MCP",
+      "license": "MIT",
+      "keywords": ["opendart", "dart", "finance", "excel", "mcp"]
+    }
+  ]
+}

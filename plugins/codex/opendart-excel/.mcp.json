@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "open-dart": {
+      "command": "uvx",
+      "args": ["--from", "opendart-mcp-server", "opendartmcp"],
+      "env_vars": ["DART_API_KEY"]
+    }
+  }
+}

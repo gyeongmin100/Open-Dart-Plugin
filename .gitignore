@@ -3,3 +3,14 @@ __pycache__/
 *.pyo
 .env
 .claude/
+.pytest_cache/
+out/
+*.xlsx
+!tests/fixtures/**/*.xlsx
+!plugins/**/skills/**/tests/fixtures/**/*.xlsx
+doc.json
+model.json
+.venv/
+venv/
+dist/
+uv.lock
