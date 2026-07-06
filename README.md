@@ -28,7 +28,7 @@
 
 ```text
 /plugin marketplace add gyeongmin100/Open-Dart-Plugin
-/plugin install opendart-excel@open-dart-mcp
+/plugin install opendart@open-dart-mcp
 ```
 
 설치 중 `DART_API_KEY`를 입력하라는 프롬프트가 뜹니다.
@@ -36,7 +36,7 @@
 사용 예:
 
 ```text
-/opendart-excel:opendart-excel 삼성전자 2023년 연결 재무제표를 엑셀로 만들어줘
+/opendart:opendart-excel 삼성전자 2023년 연결 재무제표를 엑셀로 만들어줘
 ```
 
 **Codex**
@@ -45,7 +45,7 @@
 codex plugin marketplace add gyeongmin100/Open-Dart-Plugin
 ```
 
-Codex에서 `/plugins`를 열고 `OpenDART MCP` marketplace의 `opendart-excel` 플러그인을 설치합니다. Codex 실행 환경에는 `DART_API_KEY`가 미리 설정되어 있어야 합니다.
+Codex에서 `/plugins`를 열고 `OpenDART MCP` marketplace의 `opendart` 플러그인을 설치합니다. Codex 실행 환경에는 `DART_API_KEY`가 미리 설정되어 있어야 합니다.
 
 ```bash
 export DART_API_KEY="your-api-key"      # bash/zsh
@@ -55,7 +55,7 @@ $env:DART_API_KEY="your-api-key"        # PowerShell
 사용 예:
 
 ```text
-$opendart-excel 삼성전자 2023년 연결 재무제표를 엑셀로 만들어줘
+$opendart 삼성전자 2023년 연결 재무제표를 엑셀로 만들어줘
 ```
 
 ---
@@ -70,12 +70,12 @@ OpenDART Excel 플러그인을 설치해줘.
 1. 저장소: https://github.com/gyeongmin100/Open-Dart-Plugin
 2. Claude Code라면:
    - /plugin marketplace add gyeongmin100/Open-Dart-Plugin 실행
-   - /plugin install opendart-excel@open-dart-mcp 실행
+   - /plugin install opendart@open-dart-mcp 실행
    - 설치 중 DART_API_KEY를 물어보면, 아직 없다고 하면 https://opendart.fss.or.kr 에서
      API 키를 발급받는 방법을 안내해줘.
    Codex라면:
    - codex plugin marketplace add gyeongmin100/Open-Dart-Plugin 실행
-   - /plugins 메뉴에서 "OpenDART MCP" marketplace의 opendart-excel 플러그인 설치 안내
+   - /plugins 메뉴에서 "OpenDART MCP" marketplace의 opendart 플러그인 설치 안내
    - 실행 환경에 DART_API_KEY 환경변수가 필요하다는 것도 안내해줘.
 3. 설치가 끝나면 opendart-excel 스킬로 "삼성전자 2023년 연결재무제표 엑셀로 만들어줘" 같은
    요청을 처리할 수 있다는 것을 확인해줘.
@@ -93,7 +93,7 @@ OpenDART Excel 플러그인을 설치해줘.
 LG전자 임원 현황 조회해줘
 SK하이닉스 배당 이력 알려줘
 2024년 합병 공시 목록 검색해줘
-삼성전자 2023년 연결 재무제표를 엑셀로 만들어줘   ← opendart-excel 플러그인
+삼성전자 2023년 연결 재무제표를 엑셀로 만들어줘   ← opendart 플러그인
 ```
 
 ---

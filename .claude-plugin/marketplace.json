@@ -7,8 +7,8 @@
   "description": "OpenDART MCP and Excel workbook automation plugins for Claude Code.",
   "plugins": [
     {
-      "name": "opendart-excel",
-      "source": "./plugins/claude/opendart-excel",
+      "name": "opendart",
+      "source": "./plugins/claude/opendart",
       "displayName": "OpenDART Excel",
       "description": "Create verified financial statement Excel workbooks from OpenDART disclosures.",
       "version": "0.1.0",

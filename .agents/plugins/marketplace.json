@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "opendart-excel",
+      "name": "opendart",
       "source": {
         "source": "local",
-        "path": "./plugins/codex/opendart-excel"
+        "path": "./plugins/codex/opendart"
       },
       "policy": {
         "installation": "AVAILABLE",
