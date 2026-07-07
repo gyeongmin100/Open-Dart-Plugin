@@ -307,7 +307,7 @@ opendartmcp/
 ---
 
 <details>
-<summary><b>부록: MCP 서버만 단독 설치</b> (Claude Code/Codex 플러그인 없이, 스킬 없이 도구만 필요한 경우)</summary>
+<summary><b>부록: MCP 서버만 단독 설치</b> (Claude Code/Codex 스킬 없이, MCP만 필요한 경우)</summary>
 
 플러그인 내부에서 쓰이는 MCP 서버 본체는 PyPI 패키지 `opendart-mcp-server`로 별도 배포됩니다. Claude Code/Codex가 아닌 다른 MCP 클라이언트(Claude Desktop 등)에서 85개 도구만 쓰고 싶다면 아래처럼 단독 설치할 수 있습니다.
 
