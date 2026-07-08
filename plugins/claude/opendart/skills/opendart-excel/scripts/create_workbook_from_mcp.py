@@ -7,7 +7,7 @@
 
 --scope auto: 문서에 한 범위만 있으면 자동 선택, 둘 다 있으면
 종료코드 2 + 사용 가능한 범위 출력(사용자에게 확인할 것).
-검증 실패 시 종료코드 1.
+검증 실패 시 종료코드 1, 재무제표 없음 시 종료코드 3.
 """
 from __future__ import annotations
 
@@ -22,7 +22,8 @@ ensure_deps()
 
 import dartdoc  # noqa: E402
 from build_financial_excel import build_workbook  # noqa: E402
-from prepare_notes_json import load_content, resolve_scope  # noqa: E402
+from prepare_notes_json import (  # noqa: E402
+    exit_no_statements, load_content, resolve_scope)
 from verify_workbook import verify  # noqa: E402
 
 
@@ -37,7 +38,10 @@ def main() -> None:
 
     content = load_content(args.input)
     scope = resolve_scope(content, args.scope)
-    model = dartdoc.extract_model(content, scope)
+    try:
+        model = dartdoc.extract_model(content, scope)
+    except LookupError as e:
+        exit_no_statements(str(e))
     if args.model_output:
         Path(args.model_output).write_text(
             json.dumps(model, ensure_ascii=False), encoding="utf-8")

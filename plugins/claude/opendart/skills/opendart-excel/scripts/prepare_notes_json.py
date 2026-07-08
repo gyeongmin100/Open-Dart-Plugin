@@ -61,9 +61,18 @@ def resolve_scope(content: str, scope: str) -> str:
     available = dartdoc.detect_scopes(soup)
     if len(available) == 1:
         return available[0]
+    if not available:
+        exit_no_statements("문서에서 재무제표 섹션을 찾을 수 없습니다")
     print(json.dumps({"error": "scope_ambiguous", "available": available},
                      ensure_ascii=False))
     sys.exit(2)
+
+
+def exit_no_statements(detail: str) -> None:
+    """재무제표 없음 -> 종료코드 3 (재시도 무의미, SKILL.md 지침대로 진단할 것)."""
+    print(json.dumps({"error": "no_financial_statements", "detail": detail},
+                     ensure_ascii=False))
+    sys.exit(3)
 
 
 def main() -> None:
@@ -76,7 +85,10 @@ def main() -> None:
 
     content = load_content(args.input)
     scope = resolve_scope(content, args.scope)
-    model = dartdoc.extract_model(content, scope)
+    try:
+        model = dartdoc.extract_model(content, scope)
+    except LookupError as e:
+        exit_no_statements(str(e))
     Path(args.output).write_text(
         json.dumps(model, ensure_ascii=False), encoding="utf-8")
 

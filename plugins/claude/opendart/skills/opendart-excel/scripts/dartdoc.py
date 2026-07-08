@@ -679,6 +679,8 @@ def extract_model(content: str, scope: str) -> dict:
     flow = _document_flow(soup)
     fs_items, notes_items = _find_slices(flow, kind, scope)
     statements = extract_statements(fs_items)
+    if not statements:
+        raise LookupError("재무제표 섹션은 있으나 재무제표 표를 찾을 수 없습니다")
     notes_preamble, notes = extract_notes(notes_items)
 
     company = ""
