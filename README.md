@@ -127,8 +127,8 @@ Open-Dart-Plugin/
 │       └── securities.py          # DS006 증권신고서
 │
 ├── plugins/                       # Claude Code / Codex 플러그인 소스
-│   ├── claude/opendart/           # Claude Code용 (.claude-plugin/plugin.json)
-│   └── codex/opendart/            # Codex용 (.codex-plugin/plugin.json)
+│   └── {claude,codex}/opendart/   # 각 클라이언트용 플러그인 (공통 구성)
+│       ├── .{claude,codex}-plugin/plugin.json # 플러그인 manifest
 │       ├── .mcp.json              # 플러그인이 MCP 서버를 실행하는 설정
 │       └── skills/opendart-excel/
 │           ├── SKILL.md                        # 엑셀 생성 스킬 지침서 (에이전트가 읽고 따름)
@@ -365,5 +365,4 @@ DART_API_KEY=your-api-key-here
 패키지를 설치했다면 `command`를 `opendartmcp` 하나로 바꿔도 됩니다.
 
 </details>
-
 
