@@ -112,7 +112,7 @@ SK하이닉스 배당 이력 알려줘
 ## 프로젝트 구조
 
 ```
-opendartmcp/
+Open-Dart-Plugin/
 ├── src/opendartmcp/              # MCP 서버 본체 (PyPI: opendart-mcp-server)
 │   ├── server.py                  # MCP 서버 엔트리포인트 + CLI (config set-api-key 등)
 │   ├── client.py                  # DartClient — OpenDART Open API 호출 래퍼
