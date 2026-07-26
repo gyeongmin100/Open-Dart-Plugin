@@ -11,6 +11,10 @@
 
 ![opendart-excel 생성 결과 예시](sample.png)
 
+## 데모 영상
+
+https://github.com/user-attachments/assets/0a95b164-7fd9-47d6-81c3-4fcb46f63a0a
+
 ---
 
 ## 준비물
@@ -165,6 +169,7 @@ Open-Dart-Plugin/
 | `get_corp_codes` | 회사명/종목코드로 법인 고유번호(corp_code) 검색 |
 
 </details>
+
 
 ### DS002 · 정기보고서 주요정보 (30)
 
@@ -365,4 +370,3 @@ DART_API_KEY=your-api-key-here
 패키지를 설치했다면 `command`를 `opendartmcp` 하나로 바꿔도 됩니다.
 
 </details>
-
