@@ -13,7 +13,7 @@
 
 ## 데모 영상
 
-https://github.com/gyeongmin100/Open-Dart-Plugin/raw/main/demo-readme.mp4
+https://github.com/user-attachments/assets/6b5664fd-73cb-409c-adec-e23df6ed1198
 
 ---
 
