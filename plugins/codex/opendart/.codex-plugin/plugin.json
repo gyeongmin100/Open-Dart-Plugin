@@ -1,7 +1,7 @@
 {
   "name": "opendart",
-  "version": "0.1.0",
-  "description": "Create verified financial statement Excel workbooks from OpenDART disclosures using the bundled MCP server.",
+  "version": "0.2.0",
+  "description": "Create verified financial statement Excel workbooks inside the OpenDART MCP server without exposing disclosure XML.",
   "author": {
     "name": "gyeongmin100",
     "email": "hopekmb1196@gmail.com",
@@ -16,7 +16,7 @@
   "interface": {
     "displayName": "OpenDART",
     "shortDescription": "Create verified OpenDART financial Excel workbooks.",
-    "longDescription": "OpenDART bundles the OpenDART MCP server with a workflow skill for generating verified financial statement Excel workbooks from DART disclosures.",
+    "longDescription": "OpenDART connects its MCP server with a workflow skill that generates and verifies financial statement Excel workbooks without sending disclosure XML through the AI conversation.",
     "developerName": "gyeongmin100",
     "category": "Productivity",
     "capabilities": ["Write"],

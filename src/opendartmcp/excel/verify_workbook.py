@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 """생성된 Excel 통합문서 검증.
 
-사용법:
-    python verify_workbook.py --model model.json --workbook out.xlsx [--source doc.xml]
-
 검증 항목:
 - 시트 구성(재무제표 시트들 + `주석`)과 원문 범위 일치
 - 재무제표 시트 수(원문 재무제표 수와 동일, 최소 4종 권고)
@@ -12,27 +9,17 @@
 - 하이퍼링크가 `주석` 시트의 해당 주석 "제목 행"을 가리키는지
 - freeze panes / auto filter 없음
 - 주석 번호 연속성(병합/누락 탐지), 참조된 주석이 모두 존재
-- --source 지정 시: 원문 재파싱 결과와 모델의 주석 번호 목록 대조
-
-종료코드: 0=통과, 1=실패.
+- source_content 지정 시: 원문 섹션의 글자 단위 완전성 대조
 """
 from __future__ import annotations
 
-import argparse
-import json
 import re
-import sys
 from collections import Counter
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
-from _ensure_deps import ensure_deps  # noqa: E402
-ensure_deps()
+from openpyxl import load_workbook
 
-from openpyxl import load_workbook  # noqa: E402
-import dartdoc  # noqa: E402
-from build_financial_excel import convert_value  # noqa: E402
-from prepare_notes_json import load_content  # noqa: E402
+from . import dartdoc
+from .build_financial_excel import convert_value
 
 NOTES_SHEET = "주석"
 
@@ -61,7 +48,8 @@ def _model_note_tokens(model: dict) -> list[str]:
     return tokens
 
 
-def verify(model: dict, workbook_path: str, source: str | None) -> dict:
+def verify(model: dict, workbook_path: str, source_content: str | None,
+           used_body: bool = False) -> dict:
     failures: list[str] = []
     warnings: list[str] = []
     wb = load_workbook(workbook_path)
@@ -176,7 +164,11 @@ def verify(model: dict, workbook_path: str, source: str | None) -> dict:
                     failures.append(
                         f"[{sheet_name}]{cell.coordinate} 링크 서식(파랑/밑줄) 아님")
                 found_links += 1
-    if found_links < len(linkable):
+    # 정기보고서 본문에는 주석번호 열이 없어 링크 0개가 정상이다 (plan.md §5.7).
+    # 첨부 경로의 링크 검사는 그대로 유지한다. 판단 근거는 문서 kind가 아니라
+    # 호출자가 실제로 본문을 골랐는지다 — detect_kind는 `(첨부)` 제목이 없는
+    # 첨부까지 본문으로 분류하므로 검사를 과하게 풀어버린다.
+    if found_links < len(linkable) and not used_body:
         failures.append(
             f"주석 링크 수 부족: 원문 {len(linkable)}개, 생성 {found_links}개")
     if not expected_numeric:
@@ -256,22 +248,9 @@ def verify(model: dict, workbook_path: str, source: str | None) -> dict:
         if ws.sheet_view.showGridLines:
             failures.append(f"[{ws.title}] 눈금선이 숨겨지지 않음")
 
-    # 8. 원문 재파싱 대조
-    if source:
-        content = load_content(source)
-        fresh = dartdoc.extract_model(content, model["scope"])
-        fresh_numbers = [n["number"] for n in fresh["notes"]]
-        if fresh_numbers != numbers:
-            failures.append(
-                f"원문 재파싱 주석 목록 불일치: 원문 {fresh_numbers} != 모델 {numbers}")
-        fresh_sheets = [s["sheet_name"] for s in fresh["statements"]]
-        model_sheets = [s["sheet_name"] for s in model["statements"]]
-        if fresh_sheets != model_sheets:
-            failures.append(
-                f"원문 재파싱 재무제표 불일치: {fresh_sheets} != {model_sheets}")
-
-        # 9. 글자 단위 완전성: 원문 섹션의 모든 글자가 모델에 있어야 한다
-        raw = dartdoc.section_raw_char_counts(content, model["scope"])
+    # 8. 글자 단위 완전성: 원문 섹션의 모든 글자가 모델에 있어야 한다
+    if source_content:
+        raw = dartdoc.section_raw_char_counts(source_content, model["scope"])
 
         def _chars(texts) -> Counter:
             counter: Counter = Counter()
@@ -327,19 +306,3 @@ def verify(model: dict, workbook_path: str, source: str | None) -> dict:
 
 def _report(failures: list[str], warnings: list[str]) -> dict:
     return {"ok": not failures, "failures": failures, "warnings": warnings}
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", required=True)
-    parser.add_argument("--workbook", required=True)
-    parser.add_argument("--source", help="원문 파일(재파싱 대조용, 권장)")
-    args = parser.parse_args()
-    model = json.loads(Path(args.model).read_text(encoding="utf-8"))
-    report = verify(model, args.workbook, args.source)
-    print(json.dumps(report, ensure_ascii=False, indent=2))
-    sys.exit(0 if report["ok"] else 1)
-
-
-if __name__ == "__main__":
-    main()

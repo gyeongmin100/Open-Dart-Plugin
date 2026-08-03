@@ -10,8 +10,8 @@
       "name": "opendart",
       "source": "./plugins/claude/opendart",
       "displayName": "OpenDART",
-      "description": "Create verified financial statement Excel workbooks from OpenDART disclosures.",
-      "version": "0.1.0",
+      "description": "Create verified financial statement Excel workbooks without exposing disclosure XML to the AI conversation.",
+      "version": "0.2.0",
       "category": "productivity",
       "author": {
         "name": "gyeongmin100",

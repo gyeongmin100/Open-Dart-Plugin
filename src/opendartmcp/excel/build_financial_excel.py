@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 """재무제표 모델 JSON -> DART 원문 양식의 Excel 생성.
 
-사용법:
-    python build_financial_excel.py --model model.json --output out.xlsx
-
 규칙:
 - 재무제표별 시트 + `주석` 시트. 모든 시트 눈금선 숨김.
 - 표 범위에만 테두리. 제목/회사명/기간/단위/문단에는 테두리 없음.
@@ -14,21 +11,14 @@
 """
 from __future__ import annotations
 
-import argparse
-import json
 import math
 import re
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
-from _ensure_deps import ensure_deps  # noqa: E402
-ensure_deps()
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 
-from openpyxl import Workbook  # noqa: E402
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side  # noqa: E402
-from openpyxl.utils import get_column_letter  # noqa: E402
-from dartdoc import inline_note_refs, norm, split_note_refs  # noqa: E402
+from .dartdoc import inline_note_refs, norm, split_note_refs
 
 NOTES_SHEET = "주석"
 THIN = Side(style="thin", color="FF808080")
@@ -510,17 +500,3 @@ def build_workbook(model: dict, output: str) -> dict:
         "note_anchors": anchors,
         "links": link_stats,
     }
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", required=True)
-    parser.add_argument("--output", required=True)
-    args = parser.parse_args()
-    model = json.loads(Path(args.model).read_text(encoding="utf-8"))
-    result = build_workbook(model, args.output)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-
-
-if __name__ == "__main__":
-    main()

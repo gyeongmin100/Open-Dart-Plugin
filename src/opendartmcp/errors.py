@@ -19,3 +19,12 @@ class DartApiError(Exception):
         self.message = message
         desc = self.ERROR_CODES.get(status, "알 수 없는 오류")
         super().__init__(f"[{status}] {desc}: {message}")
+
+
+class DartHttpError(Exception):
+    """HTTP 상태와 API 경로만 담는 안전한 전송 오류."""
+
+    def __init__(self, status_code: int, path: str):
+        self.status_code = status_code
+        self.path = path
+        super().__init__(f"OpenDART HTTP {status_code}: {path}")

@@ -15,6 +15,7 @@ from opendartmcp.tools import (
     stock_holdings,
     major_report,
     securities,
+    workbook,
 )
 
 
@@ -43,6 +44,7 @@ def create_server() -> FastMCP:
     stock_holdings.register(mcp, client)
     major_report.register(mcp, client)
     securities.register(mcp, client)
+    workbook.register(mcp, client)
 
     return mcp
 

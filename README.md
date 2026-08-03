@@ -7,7 +7,7 @@
 [OpenDART API](https://opendart.fss.or.kr)(금융감독원 전자공시시스템 오픈API)를 이용해 **MCP 서버**를 만들고, 특정 기업의 재무제표를  **Excel 파일**로 만들어주는 SKILL을 포함한 **Claude Code / Codex 플러그인**입니다.
 
 - "하이닉스 2025년 연결재무제표 엑셀로 만들어줘" 한마디로 **재무제표 원문(감사보고서)을 가져와 시트별로 정리하고, 각 주석번호에 하이퍼링크**까지 걸린 `.xlsx` 파일을 생성합니다.
-- 공시 검색, 재무제표, 임원/주주 현황, 주요사항보고서 등 DS001~DS006 전 영역 **85개 도구**도 자연어 질의로 바로 사용할 수 있습니다.
+- 공시 검색, 재무제표, 임원/주주 현황, 주요사항보고서 등 DS001~DS006 전 영역 **85개 API 도구**와 Excel 워크플로 도구를 자연어 질의로 사용할 수 있습니다.
 
 ![opendart-excel 생성 결과 예시](sample.png)
 
@@ -106,10 +106,19 @@ SK하이닉스 배당 이력 알려줘
 
 ## opendart-excel 스킬 동작 방식
 
-1. 회사명·사업연도·범위(연결/별도)를 파악하고, 범위가 모호하면 반드시 사용자에게 확인합니다.
-2. MCP로 공시 검색 → 사업보고서(가능하면 감사보고서 첨부)의 원문을 가져옵니다.
-3. 원문을 파싱해 재무제표별 시트 + `주석` 시트로 구성된 Excel을 생성합니다. 주석번호는 표 우측 열에 개별 셀로 분리되고, 파란색 하이퍼링크로 `주석` 시트의 해당 항목으로 연결됩니다.
-4. 시트 구성·프리앰블·주석 연속성·하이퍼링크·글자 단위 완전성까지 자동 검증한 뒤, 검증을 통과한 `.xlsx` 파일만 전달합니다.
+1. 회사명·사업연도·기간·범위(연결/별도)를 파악하고, 모호하면 반드시 사용자에게 확인합니다.
+2. `get_corp_codes`로 `corp_code`를, `search_disclosures`로 해당 기간 정기보고서의 `rcept_no`를 정합니다.
+3. `create_financial_workbook`을 **한 번** 호출합니다. 이후는 MCP 서버가 수행합니다 — 공시 ZIP 1회 다운로드 → 감사·검토보고서 첨부 선택 → 메모리에서 파싱 → Excel 생성 → 검증.
+4. 재무제표별 시트 + `주석` 시트가 만들어집니다. 주석번호는 표 우측 열에 개별 셀로 분리되고, 파란색 하이퍼링크로 `주석` 시트의 해당 항목으로 연결됩니다.
+5. 시트 구성·프리앰블·주석 연속성·하이퍼링크·글자 단위 완전성까지 자동 검증한 뒤, 검증을 통과한 `.xlsx` 파일 경로만 반환합니다.
+
+공시 원문(XML)은 서버 메모리에서만 처리되어 AI에게 전달되지 않으며, 중간 파일도 남지 않습니다. 감사·검토보고서 첨부가 없으면 조용히 본문으로 대체하지 않고 오류를 반환합니다(`use_body=true`로 명시할 때만 본문 사용).
+
+안전성:
+
+- `use_body=true`일 때도 ZIP 첫 파일이 아니라 `사업보고서`·`반기보고서`·`분기보고서` 제목의 본문만 선택합니다.
+- OpenDART HTTP 오류에는 상태 코드와 API 경로만 포함하며, `httpx` 로그의 `crtfc_key`는 `***`로 가립니다.
+- 검증 실패·취소·최종 파일 이동 실패 시 서버가 만든 임시 파일과 빈 선점 파일을 정리합니다.
 
 ---
 
@@ -121,29 +130,27 @@ Open-Dart-Plugin/
 │   ├── server.py                  # MCP 서버 엔트리포인트 + CLI (config set-api-key 등)
 │   ├── client.py                  # DartClient — OpenDART Open API 호출 래퍼
 │   ├── config.py                  # API 키 저장/조회 (CLI 등록 vs 환경변수)
-│   ├── errors.py                  # DartApiError
+│   ├── errors.py                  # 안전한 DART API/HTTP 예외
+│   ├── excel/                     # 재무제표 Excel 생성 (서버가 직접 수행)
+│   │   ├── dartdoc.py             # DART 원문 XML/HTML 파서
+│   │   ├── build_financial_excel.py # 모델 → Excel 워크북 생성
+│   │   ├── verify_workbook.py     # 생성된 Excel 자동 검증
+│   │   └── workflow.py            # ZIP 1회 다운로드 → 문서 선택 → 파싱 → 생성 → 검증
 │   └── tools/                     # MCP 도구 정의 — DS001~DS006 그룹별 파일
 │       ├── disclosure.py          # DS001 공시정보 (검색/기업정보/원문/고유번호검색)
 │       ├── business_report.py     # DS002 정기보고서 주요정보
 │       ├── financial.py           # DS003 재무정보
 │       ├── stock_holdings.py      # DS004 지분공시
 │       ├── major_report.py        # DS005 주요사항보고서
-│       └── securities.py          # DS006 증권신고서
+│       ├── securities.py          # DS006 증권신고서
+│       └── workbook.py            # create_financial_workbook (고수준 워크플로 도구)
 │
 ├── plugins/                       # Claude Code / Codex 플러그인 소스
 │   └── {claude,codex}/opendart/   # 각 클라이언트용 플러그인 (공통 구성)
 │       ├── .{claude,codex}-plugin/plugin.json # 플러그인 manifest
 │       ├── .mcp.json              # 플러그인이 MCP 서버를 실행하는 설정
 │       └── skills/opendart-excel/
-│           ├── SKILL.md                        # 엑셀 생성 스킬 지침서 (에이전트가 읽고 따름)
-│           ├── requirements.txt                # beautifulsoup4, lxml, openpyxl
-│           └── scripts/
-│               ├── dartdoc.py                  # DART 원문 XML/HTML 파서
-│               ├── prepare_notes_json.py       # 원문 → 중간 모델 JSON 변환
-│               ├── build_financial_excel.py    # 모델 JSON → Excel 워크북 생성
-│               ├── verify_workbook.py          # 생성된 Excel 자동 검증
-│               ├── create_workbook_from_mcp.py # 위 세 단계를 한 번에 실행 (원스텝, 권장)
-│               └── _ensure_deps.py             # 의존성 자동 설치 헬퍼
+│           └── SKILL.md           # 엑셀 생성 스킬 지침서 (에이전트가 읽고 따름)
 │
 ├── .claude-plugin/marketplace.json    # Claude Code 마켓플레이스 정의
 ├── .agents/plugins/marketplace.json   # Codex 마켓플레이스 정의
@@ -152,11 +159,23 @@ Open-Dart-Plugin/
 └── sample.png                         # README 예시 이미지
 ```
 
+> **변경사항**: 재무제표 Excel 생성 코드는 플러그인의 `skills/opendart-excel/scripts/`(Claude·Codex 두 벌)에서 `src/opendartmcp/excel/` 한 벌로 옮겨졌고, MCP 서버가 직접 실행합니다. 플러그인 쪽 스크립트와 `requirements.txt`, 의존성 자동 설치 헬퍼는 제거되었습니다. 기존 공개 MCP 도구는 그대로 유지됩니다.
+>
+> 플러그인의 `.mcp.json`은 `uvx --from opendart-mcp-server opendartmcp`로 **PyPI 배포본**을 실행합니다. `create_financial_workbook`을 포함한 서버 버전은 `1.3.0`이므로, GitHub 소스만 갱신하고 PyPI 릴리스를 만들지 않으면 기존 설치 환경에는 새 도구가 적용되지 않습니다.
+
 ---
 
-## 제공 도구 (85개)
+## 제공 도구
 
-### DS001 · 공시정보 (4)
+### 워크플로 도구 (1)
+
+| Tool | Description |
+|------|-------------|
+| `create_financial_workbook` | 접수번호 1건에서 검증된 재무제표 Excel 생성 (원문은 반환하지 않고 파일 경로만 반환) |
+
+### OpenDART API 도구 (85개)
+
+#### DS001 · 공시정보 (4)
 
 <details>
 <summary>목록 펼치기</summary>
@@ -171,7 +190,7 @@ Open-Dart-Plugin/
 </details>
 
 
-### DS002 · 정기보고서 주요정보 (30)
+#### DS002 · 정기보고서 주요정보 (30)
 
 <details>
 <summary>목록 펼치기</summary>
@@ -211,7 +230,7 @@ Open-Dart-Plugin/
 
 </details>
 
-### DS003 · 재무정보 (7)
+#### DS003 · 재무정보 (7)
 
 <details>
 <summary>목록 펼치기</summary>
@@ -228,7 +247,7 @@ Open-Dart-Plugin/
 
 </details>
 
-### DS004 · 지분공시 (2)
+#### DS004 · 지분공시 (2)
 
 <details>
 <summary>목록 펼치기</summary>
@@ -240,7 +259,7 @@ Open-Dart-Plugin/
 
 </details>
 
-### DS005 · 주요사항보고서 (36)
+#### DS005 · 주요사항보고서 (36)
 
 <details>
 <summary>목록 펼치기</summary>
@@ -286,7 +305,7 @@ Open-Dart-Plugin/
 
 </details>
 
-### DS006 · 증권신고서 (6)
+#### DS006 · 증권신고서 (6)
 
 <details>
 <summary>목록 펼치기</summary>
@@ -314,7 +333,7 @@ Open-Dart-Plugin/
 <details>
 <summary><b>부록: MCP 서버만 단독 설치</b></summary>
 
-플러그인 내부에서 쓰이는 MCP 서버 본체는 PyPI 패키지 `opendart-mcp-server`로 별도 배포됩니다. Claude Code/Codex가 아닌 다른 MCP 클라이언트(Claude Desktop 등)에서 85개 도구만 쓰고 싶다면 아래처럼 단독 설치할 수 있습니다.
+플러그인 내부에서 쓰이는 MCP 서버 본체는 PyPI 패키지 `opendart-mcp-server`로 별도 배포됩니다. Claude Code/Codex가 아닌 다른 MCP 클라이언트(Claude Desktop 등)에서도 85개 OpenDART API 도구와 `create_financial_workbook`을 사용하려면 아래처럼 단독 설치할 수 있습니다.
 
 **패키지 설치**
 

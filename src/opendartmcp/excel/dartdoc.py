@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """DART 공시 원문(XML/HTML) tolerant 파서 및 재무제표/주석 모델 추출.
 
-입력: OpenDART MCP `get_disclosure_document` 결과의 content 문자열
+입력: OpenDART 공시 문서의 content 문자열
       (사업보고서 본문 XML 또는 감사보고서 첨부 XML).
 출력: JSON 직렬화 가능한 모델 dict.
 
@@ -46,6 +46,16 @@ from bs4.element import Tag, NavigableString
 
 CONSOLIDATED = "consolidated"
 SEPARATE = "separate"
+
+
+class SectionNotFound(LookupError):
+    """섹션/범위 탐색 실패. code로 재시도 가치가 있는지 구분한다 (plan.md §7)."""
+
+    def __init__(self, code: str, message: str,
+                 available_scopes: list[str] | None = None):
+        self.code = code
+        self.available_scopes = available_scopes or []
+        super().__init__(message)
 
 _STATEMENT_BODIES = (
     "재무상태표",
@@ -399,9 +409,11 @@ def _find_slices(flow: list[Tag], kind: str, scope: str) -> tuple[list[Tag], lis
         elif fs_idx is not None and notes_idx is None and t == want_notes:
             notes_idx = i
     if fs_idx is None:
-        raise LookupError(f"섹션을 찾을 수 없습니다: {want_fs}")
+        raise SectionNotFound("fs_section_not_found",
+                              f"섹션을 찾을 수 없습니다: {want_fs}")
     if notes_idx is None:
-        raise LookupError(f"주석 섹션을 찾을 수 없습니다: {want_notes}")
+        raise SectionNotFound("notes_section_not_found",
+                              f"주석 섹션을 찾을 수 없습니다: {want_notes}")
 
     def is_boundary(el: Tag) -> bool:
         # 섹션 경계 = SECTION 직속 TITLE.
@@ -673,14 +685,18 @@ def extract_model(content: str, scope: str) -> dict:
     kind = detect_kind(soup)
     available = detect_scopes(soup)
     if scope not in available:
-        raise LookupError(
-            f"요청한 범위({scope})가 문서에 없습니다. 문서 내 범위: {available}")
+        raise SectionNotFound(
+            "scope_not_in_document",
+            f"요청한 범위({scope})가 문서에 없습니다. 문서 내 범위: {available}",
+            available)
 
     flow = _document_flow(soup)
     fs_items, notes_items = _find_slices(flow, kind, scope)
     statements = extract_statements(fs_items)
     if not statements:
-        raise LookupError("재무제표 섹션은 있으나 재무제표 표를 찾을 수 없습니다")
+        raise SectionNotFound(
+            "no_statement_tables",
+            "재무제표 섹션은 있으나 재무제표 표를 찾을 수 없습니다")
     notes_preamble, notes = extract_notes(notes_items)
 
     company = ""
