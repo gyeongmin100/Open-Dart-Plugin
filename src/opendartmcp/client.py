@@ -35,12 +35,17 @@ logging.getLogger("httpx").addFilter(_RedactApiKeyFilter())
 
 class DartClient:
     BASE_URL = "https://opendart.fss.or.kr/api"
+    DART_URL = "https://dart.fss.or.kr"
     # 공시 ZIP은 수 MB라 기본 타임아웃과 분리한다 (plan.md §5.13).
     DOWNLOAD_TIMEOUT = 120.0
 
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self._http = httpx.AsyncClient(base_url=self.BASE_URL, timeout=30.0)
+        # DART는 연결을 간헐적으로 끊는다. 연결 단계 실패만 두 번 더 시도한다
+        # (요청이 서버에 닿기 전이라 재시도가 안전하다).
+        self._http = httpx.AsyncClient(
+            base_url=self.BASE_URL, timeout=30.0,
+            transport=httpx.AsyncHTTPTransport(retries=2))
 
     async def aclose(self):
         await self._http.aclose()
@@ -69,6 +74,13 @@ class DartClient:
                                         timeout=self.DOWNLOAD_TIMEOUT)
         self._raise_for_status(response)
         return response.content
+
+    async def get_dart_html(self, path: str, params: dict) -> str:
+        """DART 공개 문서뷰어 HTML. OpenDART ZIP에 빠진 첨부 조회용."""
+        response = await self._http.get(f"{self.DART_URL}{path}", params=params,
+                                        timeout=self.DOWNLOAD_TIMEOUT)
+        self._raise_for_status(response)
+        return response.text
 
     @staticmethod
     def open_zip(content: bytes) -> "zipfile.ZipFile":

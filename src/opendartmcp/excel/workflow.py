@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
-"""공시 ZIP → 감사·검토보고서 선택 → 파싱 → Excel → 검증 (plan.md §5).
+"""선택된 문서 1건 → 파싱 → Excel → 검증 (plan.md §5).
 
-AI에게 원문을 전달하지 않기 위해, 선택한 XML은 이 모듈의 메모리에만 존재한다.
+어느 문서를 쓸지는 AI가 candidate_id로 지정한다. 이 모듈은 그 문서만
+받아온다. AI에게 원문을 전달하지 않기 위해, 받은 원문은 이 모듈의
+메모리에만 존재한다.
 """
 from __future__ import annotations
 
@@ -11,13 +13,11 @@ import tempfile
 from pathlib import Path
 
 from ..errors import DartApiError
-from . import dartdoc
+from . import candidates, dartdoc
 from .build_financial_excel import build_workbook
 from .verify_workbook import verify
 
 SCOPES = (dartdoc.CONSOLIDATED, dartdoc.SEPARATE)
-_RCEPT_RE = re.compile(r"^\d{14}$")
-_AUDIT_KEYWORDS = ("감사보고서", "검토보고서")
 _BODY_KEYWORDS = ("사업보고서", "반기보고서", "분기보고서")
 _INVALID_NAME_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 # DOCUMENT-NAME은 원문 머리 4096바이트에서 뽑으므로 비정상적으로 길 수 있다.
@@ -25,30 +25,13 @@ _INVALID_NAME_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 _TITLE_MAX = 200
 
 
-def is_audit_title(title: str) -> bool:
-    normalized = dartdoc.norm(title)
-    return any(keyword in normalized for keyword in _AUDIT_KEYWORDS)
-
-
-def select_document(documents: list[dict], scope: str,
-                    use_body: bool) -> tuple[dict | None, bool]:
-    """§5.5 — 감사·검토보고서 첨부 우선. 없으면 use_body일 때만 본문(첫 문서).
-
-    반환: (선택 문서, 본문 폴백 여부). 폴백 여부는 제목이 아니라 어느 분기로
-    선택했는지를 그대로 알려준다 — 검증 기준(§5.7)이 여기에 달려 있다.
-    """
+def select_body_document(documents: list[dict]) -> dict | None:
+    """ZIP의 본문. 정기보고서가 있으면 그것, 없으면(외부감사 단독 공시) 첫 문서."""
     for document in documents:
-        if not is_audit_title(document["title"]):
-            continue
-        has_consolidated = "연결" in dartdoc.norm(document["title"])
-        if has_consolidated == (scope == dartdoc.CONSOLIDATED):
-            return document, False
-    if use_body:
-        for document in documents:
-            title = dartdoc.norm(document["title"])
-            if any(keyword in title for keyword in _BODY_KEYWORDS):
-                return document, True
-    return None, False
+        title = dartdoc.norm(document["title"])
+        if any(keyword in title for keyword in _BODY_KEYWORDS):
+            return document
+    return documents[0] if documents else None
 
 
 def sanitize_output_name(name: str) -> str:
@@ -95,9 +78,10 @@ class StageFailure(Exception):
         super().__init__(f"{stage}: {self.error_type}")
 
 
-async def create_workbook(client, rcept_no: str, scope: str, output_dir: str,
-                          output_name: str, use_body: bool = False) -> dict:
-    """공시 1건에서 검증된 재무제표 Excel을 만들고 파일 참조만 반환한다."""
+async def create_workbook(client, candidate_id: str, scope: str,
+                          output_dir: str, output_name: str,
+                          allow_body: bool = False) -> dict:
+    """선택된 문서 1건에서 검증된 Excel을 만들고 파일 참조만 반환한다."""
     stage = "download"
 
     def _set(name: str) -> None:
@@ -105,20 +89,26 @@ async def create_workbook(client, rcept_no: str, scope: str, output_dir: str,
         stage = name
 
     try:
-        return await _pipeline(client, rcept_no, scope, output_dir,
-                               output_name, use_body, _set)
+        return await _pipeline(client, candidate_id, scope, output_dir,
+                               output_name, allow_body, _set)
     except DartApiError:
         raise
     except Exception as error:
         raise StageFailure(stage, error) from None
 
 
-async def _pipeline(client, rcept_no: str, scope: str, output_dir: str,
-                    output_name: str, use_body: bool, set_stage) -> dict:
+async def _pipeline(client, candidate_id: str, scope: str, output_dir: str,
+                    output_name: str, allow_body: bool, set_stage) -> dict:
     # --- §5.2 입력 검증 (다운로드 전에 수행한다) ---
-    if not _RCEPT_RE.match(rcept_no or ""):
-        return _error("invalid_rcept_no", rcept_no, scope,
-                      detail="rcept_no는 14자리 숫자여야 합니다.")
+    try:
+        kind, rcept_no, dcm_no = candidates.parse_candidate_id(candidate_id)
+    except candidates.CandidateError:
+        return _error("invalid_candidate_id", "", scope,
+                      detail="candidate_id는 후보 목록의 값을 그대로 써야 합니다.")
+    if kind == "body" and not allow_body:
+        return _error(
+            "confirmation_required", rcept_no, scope,
+            detail="감사·검토보고서가 없습니다. 사용자 승인 후 allow_body=true로 재호출하세요.")
     if scope not in SCOPES:
         return _error("invalid_scope", rcept_no, scope,
                       detail="scope는 consolidated 또는 separate여야 합니다.")
@@ -131,33 +121,56 @@ async def _pipeline(client, rcept_no: str, scope: str, output_dir: str,
         return _error("invalid_output_dir", rcept_no, scope,
                       detail="output_name은 경로 없이 .xlsx로 끝나야 합니다.")
 
-    # --- §5.3 공시 ZIP 1회 다운로드, 이후 같은 bytes만 재사용 ---
+    # --- §5.3 선택된 문서 1건만 받는다 ---
     set_stage("download")
-    zip_bytes = await client.download_zip("/document.xml", {"rcept_no": rcept_no})
-    with client.open_zip(zip_bytes) as zf:
-        documents = client.zip_documents(zf)
-        selected, used_body = select_document(documents, scope, use_body)
-        # ZIP 엔트리 경로를 파일 경로로 쓰지 않는다 — 진단용 이름은 basename만.
-        summary = [{"filename": os.path.basename(d["filename"]),
-                    "title": d["title"][:_TITLE_MAX]} for d in documents]
-        if selected is None:
-            return _error("audit_attachment_not_found", rcept_no, scope,
-                          documents=summary)
-        source_content = client._decode_document(zf.read(selected["filename"]))
-
-    source_title = selected["title"][:_TITLE_MAX]
+    if kind in ("zip", "viewer"):
+        try:
+            if kind == "zip":
+                source_content, source_title = await candidates.load_zip_document(
+                    client, rcept_no, dcm_no)
+            else:
+                source_content, source_title = await candidates.load_attachment(
+                    client, rcept_no, dcm_no, scope)
+        except candidates.CandidateError:
+            return _error("candidate_unavailable", rcept_no, scope,
+                          detail="후보 목록의 다른 문서를 선택하세요.")
+        source_title = source_title[:_TITLE_MAX]
+    else:
+        zip_bytes = await client.download_zip(
+            "/document.xml", {"rcept_no": rcept_no})
+        with client.open_zip(zip_bytes) as zf:
+            selected = select_body_document(client.zip_documents(zf))
+            if selected is None:
+                return _error("candidate_unavailable", rcept_no, scope,
+                              detail="공시 ZIP에 문서가 없습니다.")
+            source_content = client._decode_document(zf.read(selected["filename"]))
+        source_title = selected["title"][:_TITLE_MAX]
 
     # --- §5.8 파싱 → 생성 → 검증 ---
     set_stage("parse")
     try:
         model = dartdoc.extract_model(source_content, scope)
     except dartdoc.SectionNotFound as error:
-        if error.code == "scope_not_in_document":
-            return _error("scope_not_in_document", rcept_no, scope,
+        if error.code in ("scope_not_in_document", "scope_not_applicable"):
+            return _error(error.code, rcept_no, scope,
                           available_scopes=error.available_scopes,
                           source_title=source_title)
+        # 어느 단계에서 끊겼는지는 재시도 가치 판단에 필요하다 (§7).
         return _error("no_financial_statements", rcept_no, scope,
-                      source_title=source_title, documents=summary)
+                      source_title=source_title, reason=error.code)
+
+    # 본문 여부는 제목이 아니라 문서 구조로 판단한다 — 정기보고서 본문에는
+    # 주석번호 열이 없어 링크 0개가 정상이고, 검증 기준(§5.7)이 여기 달려 있다.
+    # 두 조건을 함께 본다. 외부감사 단독 공시의 본문은 감사보고서 자체라
+    # 주석번호 열이 있고(구조), 2014년 이전 첨부는 "(첨부)재무제표" 표기가
+    # 없어 구조만 보면 본문으로 오인된다(후보 종류).
+    # 공시 ZIP의 본문은 접미사 없는 엔트리(<접수번호>.xml)다.
+    is_body_doc = kind == "body" or dcm_no == f"{rcept_no}.xml"
+    used_body = is_body_doc and model["kind"] == "annual_report_body"
+    if used_body and not allow_body:
+        return _error(
+            "confirmation_required", rcept_no, scope,
+            detail="본문 후보입니다. 사용자 승인 후 allow_body=true로 재호출하세요.")
 
     try:
         handle, temp_path = tempfile.mkstemp(dir=str(directory), suffix=".xlsx")
@@ -192,6 +205,7 @@ async def _pipeline(client, rcept_no: str, scope: str, output_dir: str,
     return {
         "ok": True,
         "rcept_no": rcept_no,
+        "candidate_id": candidate_id,
         "scope": scope,
         "source_title": source_title,
         "used_body": used_body,

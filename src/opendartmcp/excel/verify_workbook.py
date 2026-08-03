@@ -70,9 +70,13 @@ def verify(model: dict, workbook_path: str, source_content: str | None,
             f"시트 구성 불일치: {wb.sheetnames} != {expected_sheets + [NOTES_SHEET]}")
 
     # 2. 재무제표 수
+    # 4종 미만도 원문이 그런 경우가 있다 — 소규모 비상장은 현금흐름표를
+    # 작성하지 않는다. 원문에 있는 표를 놓쳤다면 아래 글자 단위 대조(7)가
+    # 잡으므로, 여기서는 알리기만 한다.
     n_statements = len(model["statements"])
     if n_statements < 4:
-        failures.append(f"재무제표가 {n_statements}종뿐입니다 (최소 4종 기대)")
+        warnings.append(
+            f"재무제표 {n_statements}종 — 원문에 그만큼만 실린 것으로 보입니다")
     elif n_statements == 4:
         warnings.append("재무제표 4종 (손익/포괄손익 통합 형식일 수 있음)")
 
@@ -110,14 +114,33 @@ def verify(model: dict, workbook_path: str, source_content: str | None,
             title_rows[m.group(1)] = cell.row
 
     # 5. 주석 번호 연속성/누락
+    # 번호가 비거나 없는 번호를 참조하는 이유는 둘이다 — 우리가 주석을
+    # 놓쳤거나, 회사가 번호를 건너뛰었거나. 원문 문단을 파서와 다른 경로로
+    # 집계해 구분한다. 원문에도 없으면 재현할 것이 없으므로 막지 않는다.
+    cached_source_notes: set[int] | None = None
+
+    def source_notes() -> set[int]:
+        nonlocal cached_source_notes
+        if cached_source_notes is None:
+            try:
+                cached_source_notes = dartdoc.source_note_numbers(
+                    source_content, model["scope"]) if source_content else set()
+            except Exception:                 # noqa: BLE001 — 검증을 막지 않는다
+                cached_source_notes = set()
+        return cached_source_notes
+
     numbers = [n["number"] for n in model["notes"]]
     if len(numbers) != len(set(numbers)):
         failures.append(f"주석 번호 중복: {numbers}")
     if numbers != sorted(numbers):
         failures.append(f"주석 번호가 증가 순서가 아닙니다: {numbers}")
     gaps = [x for a, b in zip(numbers, numbers[1:]) for x in range(a + 1, b)]
-    if gaps:
-        failures.append(f"주석 번호 누락(병합 의심): {gaps}")
+    lost = [n for n in gaps if n in source_notes()]
+    skipped = [n for n in gaps if n not in source_notes()]
+    if lost:
+        failures.append(f"주석 번호 누락(병합 의심): {lost}")
+    if skipped:
+        warnings.append(f"원문이 건너뛴 주석 번호: {skipped}")
     for n in numbers:
         if str(n) not in title_rows:
             failures.append(f"주석 {n} 제목 행이 `주석` 시트에 없습니다")
@@ -126,9 +149,18 @@ def verify(model: dict, workbook_path: str, source_content: str | None,
     expected_tokens = _model_note_tokens(model)
     expected_numeric = [t for t in expected_tokens if re.fullmatch(r"\d+", t)]
     linkable = [t for t in expected_numeric if int(t) in set(numbers)]
-    unlinkable = sorted({t for t in expected_numeric if int(t) not in set(numbers)})
-    if unlinkable:
-        failures.append(f"재무제표가 참조하는 주석이 파싱되지 않음: {unlinkable}")
+    unlinkable = sorted({t for t in expected_numeric if int(t) not in set(numbers)},
+                        key=int)
+    # 원문에 그 번호의 주석이 실제로 있는데 우리가 못 만들었으면 실패다.
+    # 원문에 없는 번호를 참조하는 것은 원문 오류이므로 링크만 생략한다.
+    # (연결표에 별도 기준 번호를 적는 회사가 있다.)
+    lost_refs = [t for t in unlinkable if int(t) in source_notes()]
+    dangling = [t for t in unlinkable if int(t) not in source_notes()]
+    if lost_refs:
+        failures.append(f"재무제표가 참조하는 주석이 파싱되지 않음: {lost_refs}")
+    if dangling:
+        warnings.append(
+            f"원문에 없는 주석번호를 참조함 — 원문 오류로 보고 링크를 생략함: {dangling}")
 
     found_links = 0
     for sheet_name in expected_sheets:
@@ -165,9 +197,7 @@ def verify(model: dict, workbook_path: str, source_content: str | None,
                         f"[{sheet_name}]{cell.coordinate} 링크 서식(파랑/밑줄) 아님")
                 found_links += 1
     # 정기보고서 본문에는 주석번호 열이 없어 링크 0개가 정상이다 (plan.md §5.7).
-    # 첨부 경로의 링크 검사는 그대로 유지한다. 판단 근거는 문서 kind가 아니라
-    # 호출자가 실제로 본문을 골랐는지다 — detect_kind는 `(첨부)` 제목이 없는
-    # 첨부까지 본문으로 분류하므로 검사를 과하게 풀어버린다.
+    # 첨부 경로의 링크 검사는 그대로 유지한다.
     if found_links < len(linkable) and not used_body:
         failures.append(
             f"주석 링크 수 부족: 원문 {len(linkable)}개, 생성 {found_links}개")

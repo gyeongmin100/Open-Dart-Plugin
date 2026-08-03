@@ -29,8 +29,9 @@ class SecretLeakTest(unittest.IsolatedAsyncioTestCase):
         client = DartClient(API_KEY)
         client._http = httpx.AsyncClient(
             base_url=DartClient.BASE_URL, transport=httpx.MockTransport(handler))
-        params = {"rcept_no": RCEPT, "scope": "consolidated",
-                  "output_dir": ".", "output_name": "x.xlsx"}
+        params = {"candidate_id": f"body:{RCEPT}", "scope": "consolidated",
+                  "output_dir": ".", "output_name": "x.xlsx",
+                  "allow_body": True}
         params.update(kwargs)
         try:
             workbook_tool.register(mcp, client)
@@ -125,6 +126,38 @@ class LinkCheckScopeTest(unittest.TestCase):
         self.assertTrue(report["ok"], report["failures"])
 
 
+class NoteNumberOriginTest(unittest.TestCase):
+    """번호가 비는 이유가 원문인지 우리 파싱인지 구분한다."""
+
+    def _build(self, content, model):
+        path = str(Path(tempfile.mkdtemp()) / "wb.xlsx")
+        build_workbook(model, path)
+        return path
+
+    def test_lost_note_still_fails(self):
+        """원문에 있는 주석을 놓치면 완화 규칙이 있어도 실패한다."""
+        content = audit_report_xml("consolidated", title="연결감사보고서")
+        model = dartdoc.extract_model(content, "consolidated")
+        self.assertEqual(sorted(dartdoc.source_note_numbers(content, "consolidated")),
+                         [1, 2, 3])
+        model["notes"] = [n for n in model["notes"] if n["number"] != 2]
+        report = verify(model, self._build(content, model), content)
+        self.assertFalse(report["ok"])
+        self.assertTrue(any("주석 번호 누락" in f for f in report["failures"]),
+                        report["failures"])
+
+    def test_number_skipped_by_source_is_only_a_warning(self):
+        """회사가 번호를 건너뛴 경우는 재현할 것이 없으므로 경고다."""
+        content = audit_report_xml("consolidated", title="연결감사보고서").replace(
+            "<P>3. 현금및현금성자산</P>", "<P>5. 현금및현금성자산</P>")
+        model = dartdoc.extract_model(content, "consolidated")
+        self.assertEqual([n["number"] for n in model["notes"]], [1, 2, 5])
+        report = verify(model, self._build(content, model), content)
+        self.assertTrue(report["ok"], report["failures"])
+        self.assertTrue(any("건너뛴 주석 번호" in w for w in report["warnings"]),
+                        report["warnings"])
+
+
 class OutputPathTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.out = Path(tempfile.mkdtemp())
@@ -132,8 +165,9 @@ class OutputPathTest(unittest.IsolatedAsyncioTestCase):
     async def _run(self, **kwargs):
         client = make_client(
             lambda r: httpx.Response(200, content=annual_report_zip(RCEPT)))
-        params = {"rcept_no": RCEPT, "scope": "consolidated",
-                  "output_dir": str(self.out), "output_name": "결과.xlsx"}
+        params = {"candidate_id": f"body:{RCEPT}", "scope": "consolidated",
+                  "output_dir": str(self.out), "output_name": "결과.xlsx",
+                  "allow_body": True}
         params.update(kwargs)
         try:
             return await workflow.create_workbook(client, **params)
@@ -192,13 +226,14 @@ class OutputPathTest(unittest.IsolatedAsyncioTestCase):
         client = make_client(lambda r: httpx.Response(200, content=zip_bytes))
         try:
             result = await workflow.create_workbook(
-                client, rcept_no=RCEPT, scope="consolidated",
-                output_dir=str(self.out), output_name="결과.xlsx")
+                client, candidate_id=f"body:{RCEPT}", scope="consolidated",
+                output_dir=str(self.out), output_name="결과.xlsx",
+                allow_body=True)
         finally:
             await client.aclose()
         blob = json.dumps(result, ensure_ascii=False)
         self.assertLess(len(blob.encode("utf-8")), 4096, blob[:200])
-        self.assertLessEqual(len(result["documents"][0]["title"]), 200)
+        self.assertLessEqual(len(result["source_title"]), 200)
 
 
 class ZipMemberErrorTest(unittest.IsolatedAsyncioTestCase):

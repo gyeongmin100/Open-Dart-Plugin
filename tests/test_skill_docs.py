@@ -6,7 +6,8 @@ SKILLS = [Path("plugins/claude/opendart/skills/opendart-excel/SKILL.md"),
 REMOVED = ["create_workbook_from_mcp.py", "prepare_notes_json.py",
            "build_financial_excel.py", "verify_workbook.py", "_ensure_deps.py",
            "requirements.txt", "doc.json", "model.json",
-           "get_disclosure_document"]
+           "get_disclosure_document", "use_body", "rcept_nos",
+           "audit_attachment_not_found"]
 KEPT_USER_LINES = [
     "회사명이나 사업연도가 없거나 모호하면 사용자에게 확인한다.",
     "회사 별칭을 정식 회사명으로 확정할 수 없으면 사용자에게 확인한다.",
@@ -21,8 +22,10 @@ class SkillDocTest(unittest.TestCase):
             text = path.read_text(encoding="utf-8")
             with self.subTest(path=str(path)):
                 self.assertIn("create_financial_workbook", text)
-                for token in ("audit_attachment_not_found", "scope_not_in_document",
-                              "no_financial_statements", "use_body",
+                for token in ("list_financial_document_candidates",
+                              "candidate_id", "candidate_unavailable",
+                              "scope_not_in_document",
+                              "no_financial_statements",
                               "output_dir", "output_name", "get_corp_codes",
                               "search_disclosures"):
                     self.assertIn(token, text)

@@ -50,5 +50,5 @@ class ExistingToolsTest(unittest.IsolatedAsyncioTestCase):
             names = {t.name for t in await mcp.list_tools()}
         finally:
             await client.aclose()
-        self.assertEqual(len(names), 86)
+        self.assertEqual(len(names), 87)
         self.assertIn("create_financial_workbook", names)

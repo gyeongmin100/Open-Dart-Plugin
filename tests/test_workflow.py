@@ -1,4 +1,5 @@
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,10 +8,12 @@ import httpx
 
 from opendartmcp.excel import workflow
 from tests.fixtures import (annual_body_xml, annual_report_zip, audit_report_xml,
-                            body_only_zip, make_zip, quarterly_report_zip)
+                            body_only_zip, make_zip, quarterly_report_zip,
+                            titled_audit_report_xml)
 from tests.test_client_zip_helpers import make_client
 
 RCEPT = "20250319000665"
+BODY_ID = f"body:{RCEPT}"
 
 
 class WorkflowTestBase(unittest.IsolatedAsyncioTestCase):
@@ -21,8 +24,9 @@ class WorkflowTestBase(unittest.IsolatedAsyncioTestCase):
     async def run_workflow(self, zip_bytes, **kwargs):
         client = make_client(lambda r: httpx.Response(200, content=zip_bytes),
                              count=self.calls)
-        params = {"rcept_no": RCEPT, "scope": "consolidated",
-                  "output_dir": str(self.out), "output_name": "결과.xlsx"}
+        params = {"candidate_id": BODY_ID, "scope": "consolidated",
+                  "output_dir": str(self.out), "output_name": "결과.xlsx",
+                  "allow_body": True}
         params.update(kwargs)
         try:
             return await workflow.create_workbook(client, **params)
@@ -30,26 +34,43 @@ class WorkflowTestBase(unittest.IsolatedAsyncioTestCase):
             await client.aclose()
 
 
-class DocumentSelectionTest(WorkflowTestBase):
-    async def test_annual_zip_consolidated_picks_linked_audit_report(self):
-        result = await self.run_workflow(annual_report_zip(RCEPT))
+class BodyDocumentTest(WorkflowTestBase):
+    async def test_body_candidate_uses_periodic_report_not_first_entry(self):
+        """ZIP에 첨부가 먼저 와도 본문은 정기보고서다."""
+        zip_bytes = make_zip({
+            "000_attachment.xml": audit_report_xml(
+                "separate", title="감사보고서"),
+            "999_body.xml": annual_body_xml("consolidated"),
+        })
+        result = await self.run_workflow(zip_bytes)
         self.assertTrue(result["ok"], result)
-        self.assertEqual(result["source_title"], "연결감사보고서")
+        self.assertEqual(result["source_title"], "사업보고서")
+
+    async def test_body_of_periodic_report_allows_zero_links(self):
+        result = await self.run_workflow(body_only_zip(RCEPT))
+        self.assertTrue(result["ok"], result)
+        self.assertTrue(result["used_body"])
+        self.assertEqual(result["verification"]["hyperlinks"], 0)
+
+    async def test_standalone_audit_filing_is_not_treated_as_body(self):
+        """외부감사 단독 공시는 ZIP의 유일한 문서가 감사보고서다.
+
+        본문 후보로 골라도 첨부 형식이므로 링크 검사를 풀면 안 된다.
+        """
+        zip_bytes = make_zip({f"{RCEPT}_00760.xml": audit_report_xml(
+            "separate", title="감사보고서")})
+        result = await self.run_workflow(zip_bytes, scope="separate")
+        self.assertTrue(result["ok"], result)
         self.assertFalse(result["used_body"])
+        self.assertGreater(result["verification"]["hyperlinks"], 0)
 
-    async def test_annual_zip_separate_picks_audit_report(self):
-        result = await self.run_workflow(annual_report_zip(RCEPT), scope="separate")
-        self.assertEqual(result["source_title"], "감사보고서")
-
-    async def test_quarterly_zip_picks_review_reports_without_period_input(self):
-        zip_bytes = quarterly_report_zip(RCEPT)
-        con = await self.run_workflow(zip_bytes)
-        self.assertIn("검토보고서", con["source_title"].replace(" ", ""))
-        self.assertIn("연결", con["source_title"])
-        sep = await self.run_workflow(zip_bytes, scope="separate",
-                                      output_name="별도.xlsx")
-        self.assertNotIn("연결", sep["source_title"])
-        self.assertIn("검토보고서", sep["source_title"].replace(" ", ""))
+    async def test_title_tag_statements_are_extracted(self):
+        """비상장 외감법인 형식: 재무제표 제목이 TITLE 태그다."""
+        zip_bytes = make_zip({f"{RCEPT}_00760.xml": titled_audit_report_xml()})
+        result = await self.run_workflow(zip_bytes, scope="separate")
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(result["verification"]["statements"], 4)
+        self.assertGreater(result["verification"]["hyperlinks"], 0)
 
     async def test_downloads_document_xml_exactly_once(self):
         await self.run_workflow(annual_report_zip(RCEPT))
@@ -60,36 +81,11 @@ class DocumentSelectionTest(WorkflowTestBase):
         self.assertEqual(len(self.calls), 1)
 
 
-class BodyFallbackTest(WorkflowTestBase):
-    async def test_missing_attachment_defaults_to_error(self):
-        result = await self.run_workflow(body_only_zip(RCEPT))
-        self.assertFalse(result["ok"])
-        self.assertEqual(result["error"], "audit_attachment_not_found")
-        self.assertEqual([d["title"] for d in result["documents"]], ["사업보고서"])
-        self.assertFalse(list(self.out.glob("*.xlsx")))
-
-    async def test_use_body_true_uses_body_and_allows_zero_links(self):
-        result = await self.run_workflow(body_only_zip(RCEPT), use_body=True)
-        self.assertTrue(result["ok"], result)
-        self.assertTrue(result["used_body"])
-        self.assertEqual(result["verification"]["hyperlinks"], 0)
-
-    async def test_use_body_selects_report_not_first_zip_entry(self):
-        zip_bytes = make_zip({
-            "000_attachment.xml": audit_report_xml(
-                "separate", title="감사보고서"),
-            "999_body.xml": annual_body_xml("consolidated"),
-        })
-        result = await self.run_workflow(zip_bytes, use_body=True)
-        self.assertTrue(result["ok"], result)
-        self.assertEqual(result["source_title"], "사업보고서")
-        self.assertTrue(result["used_body"])
-
-
 class ErrorMappingTest(WorkflowTestBase):
-    async def test_invalid_rcept_no_does_not_download(self):
-        result = await self.run_workflow(annual_report_zip(RCEPT), rcept_no="123")
-        self.assertEqual(result["error"], "invalid_rcept_no")
+    async def test_invalid_candidate_id_does_not_download(self):
+        result = await self.run_workflow(annual_report_zip(RCEPT),
+                                         candidate_id="123")
+        self.assertEqual(result["error"], "invalid_candidate_id")
         self.assertEqual(self.calls, [])
 
     async def test_invalid_output_dir(self):
@@ -105,25 +101,32 @@ class ErrorMappingTest(WorkflowTestBase):
         self.assertEqual(self.calls, [])
 
     async def test_scope_not_in_document_returns_available_scopes(self):
-        """§5.6: DOCUMENT-NAME은 연결인데 내용에 연결 범위가 없는 경우."""
+        """§5.6: 별도 문서에 연결을 요청하면 있는 범위를 알려준다."""
         zip_bytes = make_zip({f"{RCEPT}_1.xml": audit_report_xml(
             "separate", title="연결감사보고서")})
         result = await self.run_workflow(zip_bytes)
         self.assertEqual(result["error"], "scope_not_in_document")
         self.assertEqual(result["available_scopes"], ["separate"])
 
-    async def test_missing_consolidated_attachment_is_attachment_error(self):
-        """별도 첨부만 있는 공시에 연결을 요청하면 첨부 부재 오류다 (§5.5)."""
-        zip_bytes = make_zip({f"{RCEPT}_1.xml": audit_report_xml(
-            "separate", title="감사보고서")})
-        result = await self.run_workflow(zip_bytes)
-        self.assertEqual(result["error"], "audit_attachment_not_found")
-
     async def test_no_financial_statements_has_distinct_code(self):
+        """표는 있으나 제목을 못 읽은 경우 — 재시도가 무의미한 실패."""
+        zip_bytes = make_zip({f"{RCEPT}_1.xml": re.sub(
+            r"<TR><TD>연결[가-힣]+</TD></TR>", "<TR><TD>내역</TD></TR>",
+            audit_report_xml("consolidated", title="연결감사보고서"))})
+        result = await self.run_workflow(zip_bytes)
+        self.assertEqual(result["error"], "no_financial_statements")
+        self.assertEqual(result["reason"], "no_statement_tables")
+
+    async def test_scope_not_applicable_when_section_is_empty(self):
+        """종속회사가 없어 연결재무제표를 안 싣는 경우는 별개 코드다."""
         zip_bytes = make_zip({f"{RCEPT}_1.xml": audit_report_xml(
             "consolidated", with_tables=False, title="연결감사보고서")})
         result = await self.run_workflow(zip_bytes)
-        self.assertEqual(result["error"], "no_financial_statements")
+        self.assertEqual(result["error"], "scope_not_applicable")
+
+    async def test_empty_zip_is_candidate_unavailable(self):
+        result = await self.run_workflow(make_zip({}))
+        self.assertEqual(result["error"], "candidate_unavailable")
 
     async def test_library_errors_do_not_exit_or_print(self):
         import contextlib
@@ -131,7 +134,7 @@ class ErrorMappingTest(WorkflowTestBase):
 
         buffer = _io.StringIO()
         with contextlib.redirect_stdout(buffer):
-            result = await self.run_workflow(body_only_zip(RCEPT))
+            result = await self.run_workflow(make_zip({}))
         self.assertFalse(result["ok"])
         self.assertEqual(buffer.getvalue(), "")
 
@@ -210,7 +213,9 @@ class ResultSizeTest(WorkflowTestBase):
         self.assertLess(len(blob.encode("utf-8")), 4096)
 
     async def test_error_result_has_no_raw_content(self):
-        result = await self.run_workflow(body_only_zip(RCEPT))
+        zip_bytes = make_zip({f"{RCEPT}_1.xml": audit_report_xml(
+            "consolidated", with_tables=False, title="연결감사보고서")})
+        result = await self.run_workflow(zip_bytes)
         blob = json.dumps(result, ensure_ascii=False)
         self.assertNotIn("<DOCUMENT", blob)
         self.assertLess(len(blob.encode("utf-8")), 4096)
@@ -219,7 +224,14 @@ class ResultSizeTest(WorkflowTestBase):
         result = await self.run_workflow(annual_report_zip(RCEPT))
         self.assertEqual(result["company"], "테스트 주식회사")
         self.assertEqual(result["rcept_no"], RCEPT)
+        self.assertEqual(result["candidate_id"], BODY_ID)
         self.assertEqual(result["scope"], "consolidated")
         self.assertEqual(result["verification"]["statements"], 4)
         self.assertEqual(result["verification"]["notes"], 3)
-        self.assertGreater(result["verification"]["hyperlinks"], 0)
+
+
+class QuarterlyTest(WorkflowTestBase):
+    async def test_quarterly_body_builds(self):
+        result = await self.run_workflow(quarterly_report_zip(RCEPT))
+        self.assertTrue(result["ok"], result)
+        self.assertTrue(result["used_body"])

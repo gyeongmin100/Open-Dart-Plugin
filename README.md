@@ -107,16 +107,18 @@ SK하이닉스 배당 이력 알려줘
 ## opendart-excel 스킬 동작 방식
 
 1. 회사명·사업연도·기간·범위(연결/별도)를 파악하고, 모호하면 반드시 사용자에게 확인합니다.
-2. `get_corp_codes`로 `corp_code`를, `search_disclosures`로 해당 기간 정기보고서의 `rcept_no`를 정합니다.
-3. `create_financial_workbook`을 **한 번** 호출합니다. 이후는 MCP 서버가 수행합니다 — 공시 ZIP 1회 다운로드 → 감사·검토보고서 첨부 선택 → 메모리에서 파싱 → Excel 생성 → 검증.
-4. 재무제표별 시트 + `주석` 시트가 만들어집니다. 주석번호는 표 우측 열에 개별 셀로 분리되고, 파란색 하이퍼링크로 `주석` 시트의 해당 항목으로 연결됩니다.
-5. 시트 구성·프리앰블·주석 연속성·하이퍼링크·글자 단위 완전성까지 자동 검증한 뒤, 검증을 통과한 `.xlsx` 파일 경로만 반환합니다.
+2. `get_corp_codes`와 `search_disclosures`로 해당 기간 정기보고서의 `rcept_no` 1건을 찾습니다.
+3. `list_financial_document_candidates`가 공시 계열 전체의 ZIP XML을 먼저 검사하고, 빠진 첨부만 DART 내부 문서 목록으로 보완합니다. AI가 요청 기간·연결/별도에 맞는 `candidate_id`를 고릅니다.
+4. `create_financial_workbook`이 선택 문서만 받아 재무제표·주석을 파싱하고 Excel을 생성·검증합니다.
+5. 감사·검토보고서 첨부가 실제로 없으면 `confirmation_required`를 반환합니다. 사용자 승인 후 `allow_body=true`로 다시 호출할 때만 `(본문)` 후보를 쓰고 생성합니다.
 
-공시 원문(XML)은 서버 메모리에서만 처리되어 AI에게 전달되지 않으며, 중간 파일도 남지 않습니다. 감사·검토보고서 첨부가 없으면 조용히 본문으로 대체하지 않고 오류를 반환합니다(`use_body=true`로 명시할 때만 본문 사용).
+정정 공시는 본문만 재제출하고 첨부는 원본 공시에 남습니다. 서버가 원본·정정·첨부정정·첨부추가 제출본의 ZIP을 모두 검사하므로 접수번호 1건이면 원본에 붙은 감사보고서까지 후보에 나옵니다. 후보의 `rcept_no`가 조회에 쓴 번호와 달라도 정상입니다.
+
+공시 원문(XML/HTML)은 서버 메모리에서만 처리되어 AI에게 전달되지 않으며, 중간 파일도 남지 않습니다.
 
 안전성:
 
-- `use_body=true`일 때도 ZIP 첫 파일이 아니라 `사업보고서`·`반기보고서`·`분기보고서` 제목의 본문만 선택합니다.
+- `allow_body=true` 없이는 본문 후보를 반환하거나 생성하지 않습니다. 승인 후에도 ZIP 첫 파일이 아니라 `사업보고서`·`반기보고서`·`분기보고서` 제목의 본문을 선택합니다.
 - OpenDART HTTP 오류에는 상태 코드와 API 경로만 포함하며, `httpx` 로그의 `crtfc_key`는 `***`로 가립니다.
 - 검증 실패·취소·최종 파일 이동 실패 시 서버가 만든 임시 파일과 빈 선점 파일을 정리합니다.
 
@@ -132,6 +134,7 @@ Open-Dart-Plugin/
 │   ├── config.py                  # API 키 저장/조회 (CLI 등록 vs 환경변수)
 │   ├── errors.py                  # 안전한 DART API/HTTP 예외
 │   ├── excel/                     # 재무제표 Excel 생성 (서버가 직접 수행)
+│   │   ├── candidates.py          # ZIP + DART 화면 첨부 후보 조회/로딩
 │   │   ├── dartdoc.py             # DART 원문 XML/HTML 파서
 │   │   ├── build_financial_excel.py # 모델 → Excel 워크북 생성
 │   │   ├── verify_workbook.py     # 생성된 Excel 자동 검증
@@ -143,7 +146,7 @@ Open-Dart-Plugin/
 │       ├── stock_holdings.py      # DS004 지분공시
 │       ├── major_report.py        # DS005 주요사항보고서
 │       ├── securities.py          # DS006 증권신고서
-│       └── workbook.py            # create_financial_workbook (고수준 워크플로 도구)
+│       └── workbook.py            # 후보 조회 + Excel 생성 워크플로 도구
 │
 ├── plugins/                       # Claude Code / Codex 플러그인 소스
 │   └── {claude,codex}/opendart/   # 각 클라이언트용 플러그인 (공통 구성)
@@ -159,19 +162,20 @@ Open-Dart-Plugin/
 └── sample.png                         # README 예시 이미지
 ```
 
-> **변경사항**: 재무제표 Excel 생성 코드는 플러그인의 `skills/opendart-excel/scripts/`(Claude·Codex 두 벌)에서 `src/opendartmcp/excel/` 한 벌로 옮겨졌고, MCP 서버가 직접 실행합니다. 플러그인 쪽 스크립트와 `requirements.txt`, 의존성 자동 설치 헬퍼는 제거되었습니다. 기존 공개 MCP 도구는 그대로 유지됩니다.
+> **변경사항**: 재무제표 Excel 생성 코드는 플러그인의 `skills/opendart-excel/scripts/`(Claude·Codex 두 벌)에서 `src/opendartmcp/excel/` 한 벌로 옮겨졌고, MCP 서버가 직접 실행합니다. 플러그인 쪽 스크립트와 `requirements.txt`, 의존성 자동 설치 헬퍼는 제거되었습니다. 기존 85개 OpenDART API 도구는 그대로 유지됩니다.
 >
-> 플러그인의 `.mcp.json`은 `uvx --from opendart-mcp-server opendartmcp`로 **PyPI 배포본**을 실행합니다. `create_financial_workbook`을 포함한 서버 버전은 `1.3.0`이므로, GitHub 소스만 갱신하고 PyPI 릴리스를 만들지 않으면 기존 설치 환경에는 새 도구가 적용되지 않습니다.
+> 플러그인의 `.mcp.json`은 `uvx --from opendart-mcp-server opendartmcp`로 **PyPI 배포본**을 실행합니다. 현재 소스 버전은 `1.4.0`이며, PyPI에 같은 버전을 릴리스하기 전까지 기존 설치 환경에는 새 후보 조회·문서 선택 로직이 적용되지 않습니다.
 
 ---
 
 ## 제공 도구
 
-### 워크플로 도구 (1)
+### 워크플로 도구 (2)
 
 | Tool | Description |
 |------|-------------|
-| `create_financial_workbook` | 접수번호 1건에서 검증된 재무제표 Excel 생성 (원문은 반환하지 않고 파일 경로만 반환) |
+| `list_financial_document_candidates` | 접수번호 1건으로 공시 계열 전체의 첨부·본문 제목 목록 반환 (원문 미반환) |
+| `create_financial_workbook` | 선택한 문서에서 검증된 재무제표 Excel 생성 (원문은 반환하지 않고 파일 경로만 반환) |
 
 ### OpenDART API 도구 (85개)
 
@@ -333,7 +337,7 @@ Open-Dart-Plugin/
 <details>
 <summary><b>부록: MCP 서버만 단독 설치</b></summary>
 
-플러그인 내부에서 쓰이는 MCP 서버 본체는 PyPI 패키지 `opendart-mcp-server`로 별도 배포됩니다. Claude Code/Codex가 아닌 다른 MCP 클라이언트(Claude Desktop 등)에서도 85개 OpenDART API 도구와 `create_financial_workbook`을 사용하려면 아래처럼 단독 설치할 수 있습니다.
+플러그인 내부에서 쓰이는 MCP 서버 본체는 PyPI 패키지 `opendart-mcp-server`로 별도 배포됩니다. Claude Code/Codex가 아닌 다른 MCP 클라이언트(Claude Desktop 등)에서도 85개 OpenDART API 도구와 2개 Excel 워크플로 도구를 사용하려면 아래처럼 단독 설치할 수 있습니다.
 
 **패키지 설치**
 

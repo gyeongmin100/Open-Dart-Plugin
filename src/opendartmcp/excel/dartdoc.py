@@ -69,8 +69,11 @@ _STATEMENT_BODIES = (
     "결손금처리계산서(안)",
     "결손금처리계산서",
 )
+# 수식어는 개수·순서가 자유롭다 — "연결", "요약연결반기", "중간", "분기" 등.
+# 화이트리스트로는 다음 회사에서 또 깨지므로 본문 명칭으로 끝나는지만 본다.
+# 접두를 한글로 제한해 "34.현금흐름표"(주석 제목)는 걸러낸다.
 _STATEMENT_RE = re.compile(
-    r"^(연결)?(" + "|".join(re.escape(b) for b in _STATEMENT_BODIES).replace(r"\(안\)", r"\(안\)") + r")$"
+    r"^[가-힣]{0,8}(" + "|".join(re.escape(b) for b in _STATEMENT_BODIES) + r")$"
 )
 _NOTE_START_RE = re.compile(r"^(\d{1,3})\.(?!\d)\s*(.*)$", re.S)
 
@@ -99,6 +102,10 @@ _KNOWN_TAGS = (
 def _sanitize(content: str) -> str:
     """XML 파서를 깨뜨리는 요소 제거: bare '&', 미정의 HTML 엔티티."""
     content = content.replace("&nbsp;", " ")
+    # DART 문서는 문단 안 줄바꿈을 &cr; 로 쓴다(2014년 이전 문서에 흔하다).
+    # 개행으로 되돌리지 않으면 "&cr;1. 지배회사의 개요"처럼 주석 번호가
+    # 줄 첫머리에 오지 않아 제목으로 인식되지 않는다.
+    content = content.replace("&cr;", '\n')
     content = re.sub(
         r"&(?!(?:" + "|".join(_XML_ENTITIES) + r"|#\d+|#x[0-9a-fA-F]+);)",
         "&amp;", content)
@@ -152,7 +159,13 @@ def text_of(el) -> str:
     def walk(node):
         for child in node.children:
             if isinstance(child, NavigableString):
-                parts.append(str(child))
+                text = str(child)
+                # 태그와 태그 사이의 줄바꿈은 원문 서식이지 본문 개행이 아니다.
+                # 남겨두면 "<SPAN>10</SPAN>\n<SPAN>. </SPAN>"처럼 쪼개 쓴 주석
+                # 번호가 서로 다른 줄로 갈라져 제목으로 인식되지 않는다.
+                if text.strip() == "" and "\n" in text:
+                    continue
+                parts.append(text)
             elif isinstance(child, Tag):
                 if child.name.upper() == "BR":
                     parts.append("\n")
@@ -394,10 +407,18 @@ def _find_slices(flow: list[Tag], kind: str, scope: str) -> tuple[list[Tag], lis
 
     if kind == "audit_report":
         want_fs = "(첨부)연결재무제표" if scope == CONSOLIDATED else "(첨부)재무제표"
-        want_notes = "주석"
     else:
         want_fs = "연결재무제표" if scope == CONSOLIDATED else "재무제표"
-        want_notes = want_fs + "주석"
+
+    def is_notes(t: str) -> bool:
+        """주석 섹션 제목. 표기가 문서마다 다르다 — "주석"(첨부),
+        "연결재무제표주석"(본문), "연결재무제표에대한주석"(2014년 이전).
+        끝말로 찾되, 두 범위가 함께 실리는 본문에서만 범위를 가린다."""
+        if not t.endswith("주석"):
+            return False
+        if kind == "audit_report":
+            return True            # 감사보고서에는 한 범위만 실린다
+        return ("연결" in t) == (scope == CONSOLIDATED)
 
     fs_idx = notes_idx = None
     for i, el in enumerate(flow):
@@ -406,14 +427,14 @@ def _find_slices(flow: list[Tag], kind: str, scope: str) -> tuple[list[Tag], lis
             continue
         if fs_idx is None and t == want_fs:
             fs_idx = i
-        elif fs_idx is not None and notes_idx is None and t == want_notes:
+        elif fs_idx is not None and notes_idx is None and is_notes(t):
             notes_idx = i
     if fs_idx is None:
         raise SectionNotFound("fs_section_not_found",
                               f"섹션을 찾을 수 없습니다: {want_fs}")
     if notes_idx is None:
         raise SectionNotFound("notes_section_not_found",
-                              f"주석 섹션을 찾을 수 없습니다: {want_notes}")
+                              f"주석 섹션을 찾을 수 없습니다: {want_fs}의 주석")
 
     def is_boundary(el: Tag) -> bool:
         # 섹션 경계 = SECTION 직속 TITLE.
@@ -436,9 +457,14 @@ def _find_slices(flow: list[Tag], kind: str, scope: str) -> tuple[list[Tag], lis
 
 
 def _statement_title_in(text: str) -> str | None:
-    t = norm(text)
-    m = _STATEMENT_RE.match(t)
-    return t if m else None
+    """재무제표 제목이면 정규화한 제목을 그대로 돌려준다(시트명 겸용).
+
+    수식어를 벗기지 않는다 — "요약연결반기재무상태표"를 "재무상태표"로
+    줄이면 시트명에서 기간 구분이 사라진다. 반면 목차 번호("4-1.")는
+    시트명에 남길 이유가 없으므로 벗긴다.
+    """
+    t = re.sub(r"^\d{1,2}(?:-\d{1,2})?\.", "", norm(text))
+    return t if _STATEMENT_RE.match(t) else None
 
 
 # ------------------------------------------- 완전성 검증용 원문 글자 집계
@@ -465,6 +491,26 @@ def _raw_chars(el: Tag) -> "Counter[str]":
     return counter
 
 
+def source_note_numbers(content: str, scope: str) -> set[int]:
+    """원문 주석 섹션에서 제목처럼 보이는 번호들 — 검증용 독립 집계.
+
+    주석 파서와 다른 경로로 센다. 파서가 놓친 주석(번호가 비는 원인)과
+    회사가 아예 건너뛴 번호(원문 결번)를 구분하는 데 쓴다.
+    표 안의 항목 번호는 제목이 아니므로 문단만 본다.
+    """
+    soup = parse_document(content)
+    _, notes_items = _find_slices(_document_flow(soup), detect_kind(soup), scope)
+    numbers: set[int] = set()
+    for item in notes_items:
+        if tag_is(item, "TABLE"):
+            continue
+        for line in text_of(item).split("\n"):
+            match = re.match(r"^\s*(\d{1,3})\.(?!\d)", line)
+            if match:
+                numbers.add(int(match.group(1)))
+    return numbers
+
+
 def section_raw_char_counts(content: str, scope: str) -> dict:
     """섹션별 원문 글자 출현 횟수 — 파싱 결과의 완전성 검증 기준.
 
@@ -487,6 +533,10 @@ def section_raw_char_counts(content: str, scope: str) -> dict:
     for item in fs_items:
         if not started:
             if tag_is(item, "TITLE"):
+                # TITLE이 재무제표 제목이면 여기서부터가 집계 대상이다.
+                # 제목 글자 자체는 아래에서 계속 제외한다.
+                if _statement_title_in(text_of(item)):
+                    started = True
                 continue
             text = text_of(item)
             if any(_statement_title_in(ln) for ln in text.split("\n") if ln):
@@ -497,8 +547,6 @@ def section_raw_char_counts(content: str, scope: str) -> dict:
                 started = True
         if not started:
             continue
-        if tag_is(item, "TITLE"):
-            continue  # dart4 중첩 제목은 엑셀로 옮기지 않는다
         fs_counter += _raw_chars(item)
         fs_snippets.append(re.sub(r"\s+", " ", text_of(item))[:60])
 
@@ -524,14 +572,20 @@ def extract_statements(items: list[Tag]) -> list[dict]:
                 "bold": _is_bold(cell_el), "size": size, "font": font}
 
     for item in items:
-        if tag_is(item, "P"):
+        # 비상장 외감법인 감사보고서는 재무제표 제목이 TABLE-GROUP 안의
+        # TITLE 태그다(섹션 경계 TITLE은 _find_slices가 이미 잘라냈다).
+        if tag_is(item, "P", "TITLE"):
             text = text_of(item)
             if not text:
                 continue
             title = _statement_title_in(text)
             if title:
+                # 제목도 시트에 쓴다 — borderless 표 제목과 동작을 맞춘다.
+                # (안 쓰면 원문 글자 대조에서 제목만 통째로 빠진다.)
                 current = {"title": text.strip(), "sheet_name": title,
-                           "preamble": [], "postscript": [], "tables": []}
+                           "preamble": [[{"text": text.strip(), "align": None,
+                                          "bold": False}]],
+                           "postscript": [], "tables": []}
                 statements.append(current)
             elif current is not None:
                 if current["tables"]:
@@ -551,9 +605,9 @@ def extract_statements(items: list[Tag]) -> list[dict]:
                 cells = [c for c in tr.find_all(lambda t: tag_is(t, *_CELL_TAGS))]
                 row = [preamble_cell(c) for c in cells]
                 joined = norm("".join(c["text"] for c in row))
-                st = _STATEMENT_RE.match(joined)
-                if st and found_title is None:
-                    found_title = joined
+                statement_key = _statement_title_in(joined)
+                if statement_key and found_title is None:
+                    found_title = statement_key
                     title_text = " ".join(c["text"] for c in row if c["text"]).strip()
                     if current is None or current["tables"]:
                         current = {"title": title_text, "sheet_name": found_title,
@@ -694,6 +748,21 @@ def extract_model(content: str, scope: str) -> dict:
     fs_items, notes_items = _find_slices(flow, kind, scope)
     statements = extract_statements(fs_items)
     if not statements:
+        # 재무제표가 실리지 않은 문서와 우리 파싱 실패를 구분한다.
+        # 판단 기준은 문구가 아니라 구조다 — 표지·서명·주소는 테두리 없는
+        # 표이므로, 테두리 있는 표(=수치 표)가 하나도 없으면 옮길 내용이
+        # 애초에 없다(종속기업 없음, 의견거절로 미첨부 등). 안내문을 수치
+        # 표처럼 넣는 문서가 있어 문구 검사를 함께 둔다.
+        section_text = norm("".join(text_of(item) for item in fs_items))
+        no_data_tables = not any(
+            tag_is(item, "TABLE") and attr(item, "BORDER").strip() != "0"
+            for item in fs_items)
+        if no_data_tables or re.search(
+                r"해당사항이?없|해당없|재무제표가없|보유하고있지않", section_text):
+            raise SectionNotFound(
+                "scope_not_applicable",
+                f"문서가 이 범위를 '해당사항 없음'으로 표기했습니다: {scope}",
+                [s for s in available if s != scope])
         raise SectionNotFound(
             "no_statement_tables",
             "재무제표 섹션은 있으나 재무제표 표를 찾을 수 없습니다")

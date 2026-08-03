@@ -31,12 +31,14 @@ class WorkbookToolTest(unittest.IsolatedAsyncioTestCase):
             workbook.register(mcp, client)
             tools = {t.name: t for t in await mcp.list_tools()}
             self.assertIn("create_financial_workbook", tools)
+            self.assertIn("list_financial_document_candidates", tools)
             schema = tools["create_financial_workbook"].inputSchema
             self.assertEqual(schema["properties"]["scope"]["enum"],
                              ["consolidated", "separate"])
-            self.assertEqual(schema["properties"]["use_body"]["default"], False)
             self.assertEqual(sorted(schema["required"]),
-                             ["output_dir", "output_name", "rcept_no", "scope"])
+                             ["candidate_id", "output_dir", "output_name", "scope"])
+            listing = tools["list_financial_document_candidates"].inputSchema
+            self.assertEqual(sorted(listing["required"]), ["rcept_no"])
         finally:
             await client.aclose()
 
@@ -47,8 +49,9 @@ class WorkbookToolTest(unittest.IsolatedAsyncioTestCase):
         try:
             workbook.register(mcp, client)
             result = await mcp.call_tool("create_financial_workbook", {
-                "rcept_no": RCEPT, "scope": "consolidated",
-                "output_dir": str(out), "output_name": "결과.xlsx"})
+                "candidate_id": f"body:{RCEPT}", "scope": "consolidated",
+                "output_dir": str(out), "output_name": "결과.xlsx",
+                "allow_body": True})
         finally:
             await client.aclose()
         payload = _payload(result)
@@ -63,8 +66,9 @@ class WorkbookToolTest(unittest.IsolatedAsyncioTestCase):
         try:
             workbook.register(mcp, client)
             result = await mcp.call_tool("create_financial_workbook", {
-                "rcept_no": RCEPT, "scope": "consolidated",
-                "output_dir": ".", "output_name": "x.xlsx"})
+                "candidate_id": f"body:{RCEPT}", "scope": "consolidated",
+                "output_dir": ".", "output_name": "x.xlsx",
+                "allow_body": True})
         finally:
             await client.aclose()
         payload = _payload(result)
@@ -77,8 +81,9 @@ class WorkbookToolTest(unittest.IsolatedAsyncioTestCase):
         try:
             workbook.register(mcp, client)
             result = await mcp.call_tool("create_financial_workbook", {
-                "rcept_no": RCEPT, "scope": "consolidated",
-                "output_dir": ".", "output_name": "x.xlsx"})
+                "candidate_id": f"body:{RCEPT}", "scope": "consolidated",
+                "output_dir": ".", "output_name": "x.xlsx",
+                "allow_body": True})
         finally:
             await client.aclose()
         payload = _payload(result)
