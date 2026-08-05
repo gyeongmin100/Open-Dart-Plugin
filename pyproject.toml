@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "opendart-mcp-server"
-version = "1.4.0"
+version = "1.4.1"
 description = "OpenDART MCP server with 85 disclosure APIs and verified financial statement Excel workbooks"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -19,7 +19,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "mcp[cli]>=1.0.0",
+    "mcp[cli]>=1.0.0,<2",
     "httpx>=0.27.0",
     "xmltodict>=0.13.0",
     "beautifulsoup4>=4.12.0",

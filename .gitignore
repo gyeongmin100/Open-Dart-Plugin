@@ -12,3 +12,6 @@ model.json
 venv/
 dist/
 uv.lock
+
+# DARTEX 웹서비스는 별도 레포다
+web_service/
