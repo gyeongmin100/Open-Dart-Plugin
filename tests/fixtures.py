@@ -92,6 +92,37 @@ def annual_body_xml(scope: str = "consolidated", company: str = "테스트 주�
 """
 
 
+def accounting_firm_body_xml(company: str = "테스트회계법인") -> str:
+    """회계법인사업보고서 본문 — 제표 넷이 "재무제표" 아래 중첩되지 않고
+    SECTION 직속 TITLE로 나란히 놓이며, 목차 번호가 가나다다."""
+    names = ("재무상태표", "손익계산서", "현금흐름표", "자본변동표")
+    blocks = "".join(
+        f"<TITLE>{marker}. {name}</TITLE>" + _statement_block(name, "3", company)
+        for marker, name in zip("가나다라", names))
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<DOCUMENT>
+<DOCUMENT-NAME>회계법인사업보고서</DOCUMENT-NAME>
+<COMPANY-NAME>{company}</COMPANY-NAME>
+<BODY>
+<SECTION-1>
+<TITLE>I. 회계법인의 개황</TITLE>
+<TITLE>1. 재무제표</TITLE>
+{blocks}
+<TITLE>마. 주석</TITLE>
+<P>1. 일반사항</P>
+<P>당 법인은 테스트 목적으로 설립되었습니다.</P>
+<P>2. 매출채권</P>
+<P>매출채권의 내역은 다음과 같습니다.</P>
+<P>3. 현금및현금성자산</P>
+<P>현금및현금성자산의 내역은 다음과 같습니다.</P>
+<TITLE>2. 부속명세</TITLE>
+<P>해당사항 없음</P>
+</SECTION-1>
+</BODY>
+</DOCUMENT>
+"""
+
+
 def titled_audit_report_xml(scope: str = "separate",
                             company: str = "테스트 주식회사",
                             title: str = "감사보고서") -> str:

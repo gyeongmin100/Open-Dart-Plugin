@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "opendart-mcp-server"
-version = "1.4.1"
+version = "1.4.2"
 description = "OpenDART MCP server with 85 disclosure APIs and verified financial statement Excel workbooks"
 readme = "README.md"
 requires-python = ">=3.11"

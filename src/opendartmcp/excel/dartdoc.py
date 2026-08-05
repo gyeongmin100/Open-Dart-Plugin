@@ -442,6 +442,12 @@ def _find_slices(flow: list[Tag], kind: str, scope: str) -> tuple[list[Tag], lis
         # 주석 제목)은 경계가 아니다.
         if not tag_is(el, "TITLE"):
             return False
+        # 재무제표 제목 자체도 경계가 아니다. 회계법인사업보고서는 제표
+        # 넷을 "재무제표" 아래 중첩하지 않고 SECTION 직속 TITLE로 나란히
+        # 두어("가. 재무상태표"…), 중첩 여부만 보면 첫 제표에서 잘려
+        # 재무제표 섹션이 빈 채로 남는다.
+        if _statement_title_in(text_of(el)):
+            return False
         return el.find_parent(lambda t: tag_is(t, "TABLE-GROUP")) is None
 
     def slice_after(idx: int) -> list[Tag]:
@@ -460,10 +466,11 @@ def _statement_title_in(text: str) -> str | None:
     """재무제표 제목이면 정규화한 제목을 그대로 돌려준다(시트명 겸용).
 
     수식어를 벗기지 않는다 — "요약연결반기재무상태표"를 "재무상태표"로
-    줄이면 시트명에서 기간 구분이 사라진다. 반면 목차 번호("4-1.")는
-    시트명에 남길 이유가 없으므로 벗긴다.
+    줄이면 시트명에서 기간 구분이 사라진다. 반면 목차 번호("4-1.", "가.")는
+    시트명에 남길 이유가 없으므로 벗긴다. 가나다 번호는 회계법인사업보고서가
+    쓴다("가. 재무상태표").
     """
-    t = re.sub(r"^\d{1,2}(?:-\d{1,2})?\.", "", norm(text))
+    t = re.sub(r"^(?:\d{1,2}(?:-\d{1,2})?|[가-힣])\.", "", norm(text))
     return t if _STATEMENT_RE.match(t) else None
 
 
