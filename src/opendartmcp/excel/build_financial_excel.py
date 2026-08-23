@@ -6,7 +6,7 @@
 - 표 범위에만 테두리. 제목/회사명/기간/단위/문단에는 테두리 없음.
 - 원문 USERMARK의 글자 크기/서체/굵기, ALIGN/VALIGN 정렬을 반영.
 - 긴 텍스트는 wrap + 행 높이 자동 계산으로 항상 전부 보이게.
-- 주석번호는 우측 끝 열로 이동, 번호마다 별도 셀 + 파란색/밑줄/하이퍼링크.
+- 주석번호는 원문 주석 열 위치를 유지, 번호마다 별도 셀 + 파란색/밑줄/하이퍼링크.
 - freeze panes, auto filter 사용 금지.
 """
 from __future__ import annotations
@@ -168,13 +168,23 @@ def _note_tokens(table: dict, note_col: int | None = -1) -> list[list[str]]:
     return tokens
 
 
+def _inline_note_tokens(table: dict) -> list[list[str]]:
+    return [
+        [] if row["header"] else
+        inline_note_refs(" ".join(c["text"] for c in row["cells"] if c))
+        for row in table["rows"]
+    ]
+
+
 def _table_col_units(table: dict, note_col: int | None) -> list[float]:
     """출력 열별 너비(열 너비 단위). px WIDTH -> /7 변환."""
     widths = table.get("col_widths") or []
     units = []
-    for i, px in enumerate(widths):
+    grid_width = max((len(row["cells"]) for row in table["rows"]), default=0)
+    for i in range(grid_width):
         if i == note_col:
             continue
+        px = widths[i] if i < len(widths) else None
         units.append(min(80.0, max(6.0, px / 7.0)) if px else NOTES_COL_WIDTH)
     return units
 
@@ -182,10 +192,9 @@ def _table_col_units(table: dict, note_col: int | None) -> list[float]:
 def _write_table(ws, start_row: int, table: dict, anchors: dict[str, int],
                  link_stats: dict, relocate_notes: bool = True,
                  col_units: list[float] | None = None) -> int:
-    """표를 기록하고 다음 빈 행 번호를 반환. 주석 열은 우측 끝으로 이동.
+    """표를 기록하고 다음 빈 행 번호를 반환. 주석 열은 원문 위치를 유지.
 
-    relocate_notes=False면 주석 열을 원위치에 그대로 둔다
-    (주석 시트 내부 표는 재배치하지 않는다).
+    relocate_notes=False면 주석 시트 내부 표를 링크용 셀로 분리하지 않는다.
     col_units: 출력 열별 너비(wrap/행높이 계산용). 없으면 기본 폭 가정.
     """
     note_col = table.get("note_col") if relocate_notes else None
@@ -200,23 +209,21 @@ def _write_table(ws, start_row: int, table: dict, anchors: dict[str, int],
     # 원문 텍스트는 그대로 두고(완전성 보존) 우측에 링크 열을 추가한다.
     inline_mode = False
     if relocate_notes and note_col is None:
-        inline_tokens = [
-            [] if row["header"] else
-            inline_note_refs(" ".join(c["text"] for c in row["cells"] if c))
-            for row in table["rows"]
-        ]
+        inline_tokens = _inline_note_tokens(table)
         if any(inline_tokens):
             inline_mode = True
             tokens_per_row = inline_tokens
             max_tokens = max(len(t) for t in tokens_per_row)
 
     bordered = not table.get("borderless")
+    note_start = (note_col + 1 + MARGIN if note_col is not None
+                  else base_width + 1 + MARGIN)
 
     def out_col(col: int) -> int:
         """원본 열 -> 출력 열(1-based, 여백 열 반영)."""
         if note_col is None or col < note_col:
             return col + 1 + MARGIN
-        return col + MARGIN  # col > note_col 은 한 칸 왼쪽으로
+        return col + MARGIN + max_tokens
 
     def unit_width(col1: int, col2: int) -> float:
         i1, i2 = col1 - 1 - MARGIN, col2 - MARGIN
@@ -266,8 +273,8 @@ def _write_table(ws, start_row: int, table: dict, anchors: dict[str, int],
             elif is_header:
                 target.fill = HEADER_FILL  # 열 제목(단위 표시 포함) 회색 배경
         for t, token in enumerate(tokens_per_row[r]):
-            target = ws.cell(row=excel_row, column=base_width + 1 + MARGIN + t)
-            target.value = token
+            target = ws.cell(row=excel_row, column=note_start + t)
+            target.value = int(token) if re.fullmatch(r"\d+", token) else token
             _align(target, "center")
             if re.fullmatch(r"\d+", token):
                 link_stats["numeric"] += 1
@@ -304,17 +311,17 @@ def _write_table(ws, start_row: int, table: dict, anchors: dict[str, int],
                    "size": None, "font": None, "fill": None, "header": True}
         if header_run and head is not None:
             top = start_row + header_run[0]
-            target = ws.cell(row=top, column=base_width + 1 + MARGIN)
+            target = ws.cell(row=top, column=note_start)
             target.value = head["text"]
             _align(target, "center")
             target.font = _font(head, bold=True) or Font(bold=True)
             target.fill = (PatternFill("solid", fgColor="FF" + head["fill"])
                            if head.get("fill") else HEADER_FILL)
             bottom = start_row + header_run[-1]
-            right = base_width + max_tokens + MARGIN
-            if bottom > top or right > base_width + 1 + MARGIN:
+            right = note_start + max_tokens - 1
+            if bottom > top or right > note_start:
                 ws.merge_cells(start_row=top,
-                               start_column=base_width + 1 + MARGIN,
+                               start_column=note_start,
                                end_row=bottom, end_column=right)
 
     # 병합 반영 (주석 열은 병합 범위에서 제외하고 클리핑)
@@ -335,9 +342,17 @@ def _write_table(ws, start_row: int, table: dict, anchors: dict[str, int],
     # 테두리: 실제 표 범위에만
     if bordered and table["rows"]:
         total_cols = base_width + max_tokens
+        note_end = note_start + max_tokens - 1
         for r in range(len(table["rows"])):
             for c in range(1 + MARGIN, total_cols + 1 + MARGIN):
-                ws.cell(row=start_row + r, column=c).border = TABLE_BORDER
+                border = TABLE_BORDER
+                if ((note_col is not None or inline_mode)
+                        and note_start <= c <= note_end):
+                    border = Border(
+                        left=THIN if c == note_start else Side(),
+                        right=THIN if c == note_end else Side(),
+                        top=THIN, bottom=THIN)
+                ws.cell(row=start_row + r, column=c).border = border
 
     return start_row + len(table["rows"])
 
@@ -345,14 +360,29 @@ def _write_table(ws, start_row: int, table: dict, anchors: dict[str, int],
 def _apply_col_widths(ws, table: dict) -> list[float]:
     """열 너비 적용 후 출력 열별 너비 목록 반환."""
     note_col = table.get("note_col")
-    units = _table_col_units(table, note_col)
+    source_units = _table_col_units(table, None)
+    tokens = _note_tokens(table, note_col)
+    if note_col is None:
+        tokens = _inline_note_tokens(table)
+    max_tokens = max((len(row) for row in tokens), default=0)
+    if note_col is not None or max_tokens:
+        max_tokens = max(1, max_tokens)
+        note_units = [
+            max(3.5, max(
+                (_disp_len(row[i]) for row in tokens if i < len(row)),
+                default=0.0) + 1.5)
+            for i in range(max_tokens)
+        ]
+        if note_col is None:
+            units = source_units + note_units
+        else:
+            units = (source_units[:note_col] + note_units
+                     + source_units[note_col + 1:])
+    else:
+        units = source_units
     ws.column_dimensions[get_column_letter(1)].width = MARGIN_COL_WIDTH
     for i, width in enumerate(units):
         ws.column_dimensions[get_column_letter(i + 1 + MARGIN)].width = width
-    if note_col is not None:
-        ws.column_dimensions[
-            get_column_letter(len(units) + 1 + MARGIN)].width = 8
-        units = units + [8.0]
     return units
 
 
@@ -459,11 +489,7 @@ def build_workbook(model: dict, output: str) -> dict:
         grid_width = 0
         if first_table:
             col_units = _apply_col_widths(ws, first_table)
-            grid_width = max(len(r["cells"]) for r in first_table["rows"])
-            if first_table.get("note_col") is not None:
-                grid_width -= 1
-                tokens = _note_tokens(first_table)
-                grid_width += max(1, max((len(t) for t in tokens), default=1))
+            grid_width = len(col_units)
         ws.row_dimensions[1].height = MARGIN_ROW_HEIGHT
         if not col_units:
             ws.column_dimensions["A"].width = MARGIN_COL_WIDTH
