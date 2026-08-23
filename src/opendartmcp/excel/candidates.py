@@ -376,6 +376,35 @@ async def load_attachment(client, rcept_no: str, dcm_no: str,
     return await _viewer_fallback(client, page, title, dcm_no, scope), title
 
 
+async def load_viewer_document(client, rcept_no: str, scope: str, *,
+                               dcm_no: str = "", title: str = "") -> str:
+    """DART 화면 HTML을 재무문서 모양으로 반환.
+
+    ZIP XML은 일부 문서에서 화면의 BR을 잃는다. 주석 문단만 화면 구조로
+    교체할 때 쓰며, viewer 후보는 dcm_no로, ZIP 후보는 문서 제목으로 찾는다.
+    """
+    page = await client.get_dart_html(
+        "/dsaf001/main.do", {"rcpNo": rcept_no, **(
+            {"dcmNo": dcm_no} if dcm_no else {})})
+    options = [item for item in _viewer_options(page)
+               if item["rcept_no"] == rcept_no]
+    if dcm_no:
+        options = [item for item in options
+                   if item["candidate_id"].endswith(f":{dcm_no}")]
+    else:
+        wanted = _title_key(title)
+        options = [item for item in options
+                   if _title_key(item["title"]) == wanted]
+    if len(options) != 1:
+        raise CandidateError("viewer document not found")
+    _, _, viewer_dcm = parse_candidate_id(options[0]["candidate_id"])
+    if not dcm_no:
+        page = await client.get_dart_html(
+            "/dsaf001/main.do", {"rcpNo": rcept_no, "dcmNo": viewer_dcm})
+    return await _viewer_fallback(
+        client, page, options[0]["title"], viewer_dcm, scope)
+
+
 async def _viewer_fallback(client, page: str, title: str, dcm_no: str,
                            scope: str) -> str:
     """화면 문서의 재무제표 덩어리를 공시 원문과 같은 모양으로 감싸 반환한다."""

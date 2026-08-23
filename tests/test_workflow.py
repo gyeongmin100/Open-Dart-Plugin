@@ -5,11 +5,12 @@ import unittest
 from pathlib import Path
 
 import httpx
+from openpyxl import load_workbook
 
-from opendartmcp.excel import workflow
+from opendartmcp.excel import candidates, dartdoc, workflow
 from tests.fixtures import (annual_body_xml, annual_report_zip, audit_report_xml,
                             body_only_zip, make_zip, quarterly_report_zip,
-                            titled_audit_report_xml)
+                            titled_audit_report_xml, viewer_fragment, viewer_page)
 from tests.test_client_zip_helpers import make_client
 
 RCEPT = "20250319000665"
@@ -235,3 +236,72 @@ class QuarterlyTest(WorkflowTestBase):
         result = await self.run_workflow(quarterly_report_zip(RCEPT))
         self.assertTrue(result["ok"], result)
         self.assertTrue(result["used_body"])
+
+
+class ViewerNotesTest(unittest.IsolatedAsyncioTestCase):
+    async def test_zip_statements_keep_html_note_breaks(self):
+        dcm = "9085000"
+        xml = audit_report_xml("separate", title="감사보고서")
+        old_notes = """<TITLE>주석</TITLE>
+<P>1. 회사의 개요</P>
+<P>당사는 테스트 목적으로 설립되었습니다.</P>
+<P>2. 매출채권</P>
+<P>매출채권의 내역은 다음과 같습니다.</P>
+<P>3. 현금및현금성자산</P>
+<P>현금및현금성자산의 내역은 다음과 같습니다.</P>"""
+        malformed_notes = """<TITLE>주석</TITLE>
+<P>1. 회사의 개요</P>
+<P>(1) 첫째 제목설명 문단(2) 둘째 제목</P>
+<P>2. 매출채권</P>
+<P>매출채권의 내역은 다음과 같습니다.</P>
+<P>3. 현금및현금성자산</P>
+<P>현금및현금성자산의 내역은 다음과 같습니다.</P>"""
+        xml = xml.replace(old_notes, malformed_notes)
+        fragment = viewer_fragment().replace(
+            '<p class="section-2">주 석</p><p>1. 현금</p>'
+            '<p>현금의 내역입니다.</p>',
+            '<p class="section-2">주 석</p><p>1. 회사의 개요</p>'
+            '<p>(1) 첫째 제목<br><br>설명 문단<br><br>(2) 둘째 제목</p>'
+            '<p>2. 매출채권</p><p>매출채권의 내역은 다음과 같습니다.</p>'
+            '<p>3. 현금및현금성자산</p>'
+            '<p>현금및현금성자산의 내역은 다음과 같습니다.</p>')
+        zip_bytes = make_zip({f"{RCEPT}_00760.xml": xml})
+
+        def handler(request):
+            if request.url.path == "/api/document.xml":
+                return httpx.Response(200, content=zip_bytes)
+            if request.url.path == "/dsaf001/main.do":
+                return httpx.Response(200, text=viewer_page(
+                    RCEPT, [(RCEPT, dcm, "2025.03.19 감사보고서")],
+                    node_dcm=dcm, node_text="(첨부)재 무 제 표"))
+            if request.url.path == "/report/viewer.do":
+                return httpx.Response(200, text=fragment)
+            return httpx.Response(404)
+
+        out = Path(tempfile.mkdtemp())
+        client = make_client(handler)
+        try:
+            result = await workflow.create_workbook(
+                client, candidate_id=f"zip:{RCEPT}:{RCEPT}_00760.xml",
+                scope="separate", output_dir=str(out), output_name="result.xlsx")
+        finally:
+            await client.aclose()
+
+        self.assertTrue(result["ok"], result)
+        ws = load_workbook(result["workbook"])["주석"]
+        cells = {str(cell.value): cell for row in ws.iter_rows() for cell in row
+                 if cell.value is not None}
+        self.assertIn("(1) 첫째 제목", cells)
+        self.assertIn("설명 문단", cells)
+        self.assertIn("(2) 둘째 제목", cells)
+        self.assertNotIn("(1) 첫째 제목설명 문단(2) 둘째 제목", cells)
+        self.assertTrue(cells["(1) 첫째 제목"].font.bold)
+        self.assertTrue(cells["(2) 둘째 제목"].font.bold)
+        first = cells["(1) 첫째 제목"].row
+        body = cells["설명 문단"].row
+        second = cells["(2) 둘째 제목"].row
+        self.assertEqual((body, second), (first + 2, first + 4))
+        self.assertIsNone(ws.cell(first + 1, 2).value)
+        self.assertIsNone(ws.cell(first + 3, 2).value)
+        self.assertEqual(ws.row_dimensions[first + 1].height, 19.2)
+        self.assertEqual(ws.row_dimensions[first + 3].height, 19.2)
