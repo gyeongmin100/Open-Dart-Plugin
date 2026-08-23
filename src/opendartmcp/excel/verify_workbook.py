@@ -221,7 +221,8 @@ def verify(model: dict, workbook_path: str, source_content: str | None,
                 if cell is None:
                     continue
                 if c == note_col and not row["header"]:
-                    values.extend(dartdoc.split_note_refs(cell["text"]))
+                    values.extend(convert_value(token) for token in
+                                  dartdoc.split_note_refs(cell["text"]))
                 else:
                     v = convert_value(cell["text"])
                     if v is not None:
