@@ -29,6 +29,11 @@ class ExcelPackageImportTest(unittest.TestCase):
 
 
 class StatementNoteColumnTest(unittest.TestCase):
+    def test_note_refs_accept_punctuation_and_whitespace_separators(self):
+        self.assertEqual(dartdoc.split_note_refs("3, 12.13"), ["3", "12", "13"])
+        self.assertEqual(dartdoc.split_note_refs("4 5 6"), ["4", "5", "6"])
+        self.assertEqual(dartdoc.split_note_refs("12,32"), ["12", "32"])
+
     def test_note_column_keeps_source_position_and_compact_number_cells(self):
         path = Path(tempfile.mkdtemp()) / "notes.xlsx"
         model = dartdoc.extract_model(

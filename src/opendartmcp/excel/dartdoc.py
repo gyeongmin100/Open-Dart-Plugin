@@ -319,9 +319,8 @@ def _detect_note_col(table: dict) -> int | None:
 
 
 def split_note_refs(text: str) -> list[str]:
-    """주석 셀 값 "4,5,7,8" -> ["4","5","7","8"]. 숫자 아닌 토큰도 보존."""
-    tokens = [t.strip() for t in re.split(r"[,，、;]", text or "") if t.strip()]
-    return tokens
+    """주석 셀의 연속된 숫자 묶음을 각각 주석번호로 추출."""
+    return re.findall(r"\d+", text or "")
 
 
 # 은행/보험 재무제표는 별도 주석 열 없이 계정명 안에 번호를 박아 넣는다.
