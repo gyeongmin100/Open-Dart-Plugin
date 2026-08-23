@@ -34,7 +34,7 @@ class StatementNoteColumnTest(unittest.TestCase):
         self.assertEqual(dartdoc.split_note_refs("4 5 6"), ["4", "5", "6"])
         self.assertEqual(dartdoc.split_note_refs("12,32"), ["12", "32"])
 
-    def test_note_column_keeps_source_position_and_compact_number_cells(self):
+    def test_note_column_moves_right_and_keeps_compact_number_cells(self):
         path = Path(tempfile.mkdtemp()) / "notes.xlsx"
         model = dartdoc.extract_model(
             audit_report_xml("consolidated"), dartdoc.CONSOLIDATED)
@@ -50,8 +50,8 @@ class StatementNoteColumnTest(unittest.TestCase):
         account_col = header.index("과목") + 1
         note_col = header.index("주석") + 1
         amount_col = header.index("당기") + 1
-        self.assertEqual(note_col, account_col + 1)
-        self.assertEqual(amount_col, note_col + 3)
+        self.assertEqual(amount_col, account_col + 1)
+        self.assertEqual(note_col, amount_col + 1)
 
         data_row = header_row[0].row + 1
         note_cells = [ws.cell(data_row, note_col + i) for i in range(3)]
@@ -64,7 +64,7 @@ class StatementNoteColumnTest(unittest.TestCase):
         self.assertEqual(note_cells[2].border.right.style, "thin")
         widths = [ws.column_dimensions[cell.column_letter].width
                   for cell in note_cells]
-        self.assertEqual(widths, [3.14, 3.14, 3.14])
+        self.assertEqual(widths, [3.43, 3.43, 3.43])
 
     def test_single_note_column_is_wide_enough_for_header(self):
         path = Path(tempfile.mkdtemp()) / "single-note.xlsx"
@@ -76,7 +76,7 @@ class StatementNoteColumnTest(unittest.TestCase):
         header_row = next(row for row in ws.iter_rows()
                           if any(cell.value == "주석" for cell in row))
         note_cell = next(cell for cell in header_row if cell.value == "주석")
-        self.assertEqual(ws.column_dimensions[note_cell.column_letter].width, 5.0)
+        self.assertEqual(ws.column_dimensions[note_cell.column_letter].width, 5.45)
 
     def test_missing_source_note_column_stays_omitted(self):
         path = Path(tempfile.mkdtemp()) / "body.xlsx"
@@ -87,3 +87,42 @@ class StatementNoteColumnTest(unittest.TestCase):
         ws = wb[model["statements"][0]["sheet_name"]]
         self.assertNotIn("주석", [cell.value for row in ws.iter_rows()
                                   for cell in row])
+
+
+class NotesSourceSpacingTest(unittest.TestCase):
+    def test_table_uses_only_dart_viewer_margin_before_footnote(self):
+        path = Path(tempfile.mkdtemp()) / "spacing.xlsx"
+        model = {
+            "notes_preamble": [],
+            "notes": [{
+                "number": 1,
+                "blocks": [
+                    {"type": "paragraph", "text": "1. 제목"},
+                    {"type": "table", "table": {
+                        "borderless": False,
+                        "col_widths": [],
+                        "note_col": None,
+                        "rows": [{"header": True, "cells": [{
+                            "text": "표 내용", "align": None,
+                            "valign": None, "bold": True,
+                            "size": None, "font": None,
+                            "fill": None, "header": True,
+                        }]}],
+                        "merges": [],
+                    }},
+                    {"type": "paragraph", "text": "(*1) 설명"},
+                ],
+            }],
+            "statements": [],
+        }
+
+        build_workbook(model, str(path))
+        ws = load_workbook(path)["주석"]
+        cells = {cell.value: cell for row in ws.iter_rows() for cell in row
+                 if cell.value is not None}
+        table_row = cells["표 내용"].row
+        footnote_row = cells["(*1) 설명"].row
+        self.assertEqual(footnote_row, table_row + 2)
+        self.assertEqual(ws.row_dimensions[table_row + 1].height, 4.5)
+        self.assertFalse(cells["표 내용"].font.bold)
+        self.assertEqual(cells["표 내용"].fill.fgColor.rgb, "FFD9D9D9")

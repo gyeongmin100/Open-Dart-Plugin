@@ -6,11 +6,12 @@
 - 표 범위에만 테두리. 제목/회사명/기간/단위/문단에는 테두리 없음.
 - 원문 USERMARK의 글자 크기/서체/굵기, ALIGN/VALIGN 정렬을 반영.
 - 긴 텍스트는 wrap + 행 높이 자동 계산으로 항상 전부 보이게.
-- 주석번호는 원문 주석 열 위치를 유지, 번호마다 별도 셀 + 파란색/밑줄/하이퍼링크.
+- 주석번호는 표 맨 오른쪽에 번호마다 별도 셀 + 파란색/밑줄/하이퍼링크.
 - freeze panes, auto filter 사용 금지.
 """
 from __future__ import annotations
 
+from copy import copy
 import math
 import re
 
@@ -28,13 +29,15 @@ HEADER_FILL = PatternFill("solid", fgColor="FFD9D9D9")
 MARGIN = 1              # 첫 행/열 여백 (모든 내용은 B2부터)
 MARGIN_COL_WIDTH = 2.5
 MARGIN_ROW_HEIGHT = 10.0
-PARA_COLS = 10          # 주석 문단을 병합할 열 수
+PARA_COLS = 11          # 주석 문단을 병합할 열 수 (B:L)
 NOTES_COL_WIDTH = 13.0  # 주석 시트 기본 열 너비
-SINGLE_NOTE_COL_WIDTH = 5.0   # 30pt
-MULTI_NOTE_COL_WIDTH = 3.14   # 약 20.4pt
-LINE_HEIGHT = 14.5      # wrap 시 줄당 높이(pt)
-DEFAULT_ROW_HEIGHT = 16.5
+SINGLE_NOTE_COL_WIDTH = 5.45  # 12pt 기준 최소 폭
+MULTI_NOTE_COL_WIDTH = 3.43   # 12pt 기준 번호별 최소 폭
+LINE_HEIGHT = 16.0      # 12pt wrap 시 줄당 높이(pt)
+DEFAULT_ROW_HEIGHT = 18.0
 MAX_ROW_HEIGHT = 409    # Excel 최대 행 높이
+HTML_LINE_HEIGHT = 19.2       # DART viewer 25.6px × 0.75
+DART_TABLE_MARGIN = 4.5       # DART viewer table margin-bottom 6px × 0.75
 
 _INT_RE = re.compile(r"^-?\d{1,3}(,\d{3})*$|^-?\d+$")
 _PAREN_INT_RE = re.compile(r"^\((\d{1,3}(,\d{3})*|\d+)\)$")
@@ -193,11 +196,13 @@ def _table_col_units(table: dict, note_col: int | None) -> list[float]:
 
 def _write_table(ws, start_row: int, table: dict, anchors: dict[str, int],
                  link_stats: dict, relocate_notes: bool = True,
-                 col_units: list[float] | None = None) -> int:
-    """표를 기록하고 다음 빈 행 번호를 반환. 주석 열은 원문 위치를 유지.
+                 col_units: list[float] | None = None,
+                 bold_headers: bool = True) -> int:
+    """표를 기록하고 다음 빈 행 번호를 반환. 주석 열은 맨 오른쪽으로 이동.
 
     relocate_notes=False면 주석 시트 내부 표를 링크용 셀로 분리하지 않는다.
     col_units: 출력 열별 너비(wrap/행높이 계산용). 없으면 기본 폭 가정.
+    bold_headers=False면 주석 시트 표 헤더의 원문 볼드를 제거한다.
     """
     note_col = table.get("note_col") if relocate_notes else None
     grid_width = max((len(r["cells"]) for r in table["rows"]), default=0)
@@ -218,14 +223,12 @@ def _write_table(ws, start_row: int, table: dict, anchors: dict[str, int],
             max_tokens = max(len(t) for t in tokens_per_row)
 
     bordered = not table.get("borderless")
-    note_start = (note_col + 1 + MARGIN if note_col is not None
-                  else base_width + 1 + MARGIN)
+    note_start = base_width + 1 + MARGIN
 
     def out_col(col: int) -> int:
         """원본 열 -> 출력 열(1-based, 여백 열 반영)."""
-        if note_col is None or col < note_col:
-            return col + 1 + MARGIN
-        return col + MARGIN + max_tokens
+        removed = 1 if note_col is not None and col > note_col else 0
+        return col + 1 + MARGIN - removed
 
     def unit_width(col1: int, col2: int) -> float:
         i1, i2 = col1 - 1 - MARGIN, col2 - MARGIN
@@ -267,7 +270,7 @@ def _write_table(ws, start_row: int, table: dict, anchors: dict[str, int],
                    vertical=cell.get("valign") or "center")
             if wrap:
                 _bump_row_height(ws, excel_row, _wrap_lines(text, width_units))
-            font = _font(cell)
+            font = _font(cell, bold=False if is_header and not bold_headers else None)
             if font:
                 target.font = font
             if cell.get("fill"):
@@ -375,8 +378,8 @@ def _apply_col_widths(ws, table: dict) -> list[float]:
         if note_col is None:
             units = source_units + note_units
         else:
-            units = (source_units[:note_col] + note_units
-                     + source_units[note_col + 1:])
+            units = (source_units[:note_col] + source_units[note_col + 1:]
+                     + note_units)
     else:
         units = source_units
     ws.column_dimensions[get_column_letter(1)].width = MARGIN_COL_WIDTH
@@ -386,23 +389,27 @@ def _apply_col_widths(ws, table: dict) -> list[float]:
 
 
 def _write_paragraph(ws, row: int, text: str, *, bold: bool = False,
-                     size: int | None = None) -> int:
+                     size: int | None = None, align: str = "left",
+                     cols: int = PARA_COLS) -> int:
     cell = ws.cell(row=row, column=1 + MARGIN)
     cell.value = text
-    width_units = PARA_COLS * NOTES_COL_WIDTH
-    _align(cell, "left", wrap=True, vertical="top")
+    width_units = cols * NOTES_COL_WIDTH
+    _align(cell, align, wrap=True, vertical="top")
     if bold or size:
         cell.font = Font(bold=bold, size=size)
     ws.merge_cells(start_row=row, start_column=1 + MARGIN,
-                   end_row=row, end_column=PARA_COLS + MARGIN)
+                   end_row=row, end_column=cols + MARGIN)
     lines = _wrap_lines(text, width_units)
     base = LINE_HEIGHT * (1.15 if size and size > 11 else 1.0)
-    ws.row_dimensions[row].height = min(MAX_ROW_HEIGHT, lines * base + 6)
+    ws.row_dimensions[row].height = (
+        HTML_LINE_HEIGHT if not text
+        else min(MAX_ROW_HEIGHT, lines * base + 6))
     return row + 1
 
 
-def _spacer(ws, row: int, height: float = 6.0) -> int:
-    ws.row_dimensions[row].height = height
+def _source_table_margin(ws, row: int) -> int:
+    """DART viewer의 table margin-bottom: 6px를 Excel pt로 변환."""
+    ws.row_dimensions[row].height = DART_TABLE_MARGIN
     return row + 1
 
 
@@ -414,34 +421,24 @@ def _build_notes_sheet(ws, model: dict) -> dict[str, int]:
     row = 1 + MARGIN
     for pre in model.get("notes_preamble", []):
         _write_preamble_row(ws, row, pre, PARA_COLS)
+        if not any(c.get("text", "").strip() for c in pre):
+            ws.row_dimensions[row].height = HTML_LINE_HEIGHT
         row += 1
     stats = {"numeric": 0, "linked": 0, "other": 0}
 
     for note in model.get("notes", []):
-        # 주석 사이 큰 여백 (제목 행이 앵커이므로 여백은 제목 앞에)
-        row = _spacer(ws, row, 30)
-        row = _spacer(ws, row, 30)
         anchors[str(note["number"])] = row
-        prev_kind = None
         for i, block in enumerate(note["blocks"]):
             if block["type"] == "paragraph":
                 text = block["text"]
                 if i == 0:
-                    # 주석 제목 행: 굵게 + 크게 (짧을 때만 확대) + 아래 여백
+                    # 기존 제목 강조는 유지하되 여백은 원문 BR만 사용한다.
                     row = _write_paragraph(
                         ws, row, text, bold=True,
                         size=13 if len(text) <= 80 else None)
-                    row = _spacer(ws, row, 12)
                 else:
                     subhead = bool(_SUBHEAD_RE.match(text) and len(text) <= 80)
-                    if prev_kind == "table" or subhead:
-                        row = _spacer(ws, row, 14)
-                    else:
-                        row = _spacer(ws, row, 4)
                     row = _write_paragraph(ws, row, text, bold=subhead)
-                    if subhead:
-                        row = _spacer(ws, row, 6)
-                prev_kind = "paragraph"
             else:
                 tbl = block["table"]
                 cells = [c for r in tbl["rows"] for c in r["cells"]
@@ -452,18 +449,30 @@ def _build_notes_sheet(ws, model: dict) -> dict[str, int]:
                 # dart4 본문은 서술 문단을 1칸 무테두리 표에 담는다.
                 # 빈 칸은 건너뛰고, 내용 칸은 문단으로 렌더링(테두리 없이).
                 if tbl.get("borderless") and is_single_col:
+                    next_cols = PARA_COLS
+                    if i + 1 < len(note["blocks"]):
+                        next_block = note["blocks"][i + 1]
+                        if next_block["type"] == "table":
+                            next_rows = next_block["table"]["rows"]
+                            next_cols = max(
+                                (len(r["cells"]) for r in next_rows),
+                                default=PARA_COLS)
+                            next_cols = max(
+                                next_cols,
+                                max((merge[3] + 1 for merge in
+                                     next_block["table"].get("merges", [])),
+                                    default=0))
                     for c in cells:
-                        if prev_kind == "table":
-                            row = _spacer(ws, row, 8)
-                        row = _write_paragraph(ws, row, c["text"])
-                        prev_kind = "paragraph"
+                        is_unit = c["text"].lstrip().startswith("(단위")
+                        row = _write_paragraph(
+                            ws, row, c["text"],
+                            align="right" if is_unit else (c.get("align") or "left"),
+                            cols=next_cols if is_unit else PARA_COLS)
+                    row = _source_table_margin(ws, row)
                     continue
-                if prev_kind == "paragraph":
-                    row = _spacer(ws, row, 8)
                 row = _write_table(ws, row, tbl, {}, stats,
-                                   relocate_notes=False)
-                row = _spacer(ws, row, 8)
-                prev_kind = "table"
+                                   relocate_notes=False, bold_headers=False)
+                row = _source_table_margin(ws, row)
 
     for col in range(1 + MARGIN, PARA_COLS + 1 + MARGIN):
         ws.column_dimensions[get_column_letter(col)].width = NOTES_COL_WIDTH
@@ -502,7 +511,7 @@ def build_workbook(model: dict, output: str) -> dict:
                 cell = ws.cell(row=row, column=1 + MARGIN)
                 cell.font = Font(bold=True, size=14,
                                  name=pre[0].get("font"))
-                ws.row_dimensions[row].height = 22
+                ws.row_dimensions[row].height = 24
             row += 1
         for table in statement["tables"]:
             row = _write_table(ws, row, table, anchors, link_stats,
@@ -516,6 +525,14 @@ def build_workbook(model: dict, output: str) -> dict:
     # 눈금선 숨김 (전 시트)
     for ws in wb.worksheets:
         ws.sheet_view.showGridLines = False
+        ws.sheet_format.defaultRowHeight = DEFAULT_ROW_HEIGHT
+        for row_cells in ws.iter_rows():
+            for cell in row_cells:
+                if cell.value is None:
+                    continue
+                font = copy(cell.font)
+                font.sz = (font.sz or 11) + 1
+                cell.font = font
 
     # 주석 시트를 마지막으로 이동
     wb.move_sheet(NOTES_SHEET, offset=len(wb.sheetnames) - 1)

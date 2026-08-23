@@ -12,7 +12,9 @@ import re
 import tempfile
 from pathlib import Path
 
-from ..errors import DartApiError
+import httpx
+
+from ..errors import DartApiError, DartHttpError
 from . import candidates, dartdoc
 from .build_financial_excel import build_workbook
 from .verify_workbook import verify
@@ -158,6 +160,43 @@ async def _pipeline(client, candidate_id: str, scope: str, output_dir: str,
         # 어느 단계에서 끊겼는지는 재시도 가치 판단에 필요하다 (§7).
         return _error("no_financial_statements", rcept_no, scope,
                       source_title=source_title, reason=error.code)
+
+    # ZIP XML은 일부 문서에서 화면의 BR을 잃는다. 표/금액은 XML 모델을
+    # 유지하고, 글자가 모두 일치할 때만 주석 블록을 화면 HTML 것으로 바꾼다.
+    if kind in ("zip", "viewer"):
+        try:
+            viewer_content = await candidates.load_viewer_document(
+                client, rcept_no, scope,
+                dcm_no=dcm_no if kind == "viewer" else "",
+                title=source_title if kind == "zip" else "")
+            viewer_model = dartdoc.extract_model(viewer_content, scope)
+            source_chars = dartdoc.section_raw_char_counts(
+                source_content, scope)["notes"]
+            viewer_chars = dartdoc.section_raw_char_counts(
+                viewer_content, scope)["notes"]
+            source_by_number = {n["number"]: n for n in model["notes"]}
+            same_numbers = (list(source_by_number)
+                            == [n["number"] for n in viewer_model["notes"]])
+            same_tables = same_numbers and all(
+                sum(b["type"] == "table" for b in
+                    source_by_number[n["number"]]["blocks"])
+                == sum(b["type"] == "table" for b in n["blocks"])
+                for n in viewer_model["notes"])
+            if source_chars == viewer_chars and same_tables:
+                # 문단 위치는 HTML, 표 데이터/병합은 XML 것을 쓴다.
+                for viewer_note in viewer_model["notes"]:
+                    source_note = source_by_number[viewer_note["number"]]
+                    source_tables = iter(
+                        b["table"] for b in source_note["blocks"]
+                        if b["type"] == "table")
+                    for block in viewer_note["blocks"]:
+                        if block["type"] == "table":
+                            block["table"] = next(source_tables)
+                model["notes_preamble"] = viewer_model["notes_preamble"]
+                model["notes"] = viewer_model["notes"]
+        except (candidates.CandidateError, dartdoc.SectionNotFound,
+                DartApiError, DartHttpError, httpx.HTTPError):
+            pass
 
     # 본문 여부는 제목이 아니라 문서 구조로 판단한다 — 정기보고서 본문에는
     # 주석번호 열이 없어 링크 0개가 정상이고, 검증 기준(§5.7)이 여기 달려 있다.

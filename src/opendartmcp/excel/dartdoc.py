@@ -152,7 +152,7 @@ def attr(el: Tag, name: str) -> str:
     return ""
 
 
-def text_of(el) -> str:
+def text_of(el, *, preserve_edge_breaks: bool = False) -> str:
     """텍스트 추출. <BR>은 개행으로 보존, 블록 P 경계도 개행."""
     parts: list[str] = []
 
@@ -182,7 +182,8 @@ def text_of(el) -> str:
     # 단어 사이 연속 공백만 하나로 줄인다.
     text = text.replace("\xa0", " ")
     lines = [re.sub(r"(?<=\S)[ \t]+", " ", ln).rstrip() for ln in text.split("\n")]
-    return "\n".join(lines).strip("\n")
+    result = "\n".join(lines)
+    return result if preserve_edge_breaks else result.strip("\n")
 
 
 def _marks(el: Tag) -> str:
@@ -705,11 +706,18 @@ def extract_notes(items: list[Tag]) -> tuple[list[list[dict]], list[dict]]:
     for item in items:
         if tag_is(item, "P", "TITLE"):
             # dart4 본문 주석은 TABLE-GROUP 내 중첩 TITLE이 주석 제목이다
-            text = text_of(item)
-            if not text:
+            text = text_of(item, preserve_edge_breaks=True)
+            if not text and tag_is(item, "TITLE"):
                 continue
             for line in text.split("\n"):
                 if not line.strip():
+                    if current is not None:
+                        current["blocks"].append(
+                            {"type": "paragraph", "text": ""})
+                    else:
+                        preamble.append([
+                            {"text": "", "align": None, "bold": False}
+                        ])
                     continue
                 for number, seg in split_note_segments(
                         line.strip(), last_number, current is not None):
