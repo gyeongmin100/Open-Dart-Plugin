@@ -59,8 +59,19 @@ class StatementNoteColumnTest(unittest.TestCase):
         self.assertEqual(note_cells[2].border.right.style, "thin")
         widths = [ws.column_dimensions[cell.column_letter].width
                   for cell in note_cells]
-        self.assertEqual(widths[:2], [3.5, 3.5])
-        self.assertGreater(widths[2], 8)
+        self.assertEqual(widths, [3.14, 3.14, 3.14])
+
+    def test_single_note_column_is_wide_enough_for_header(self):
+        path = Path(tempfile.mkdtemp()) / "single-note.xlsx"
+        model = dartdoc.extract_model(
+            audit_report_xml("consolidated"), dartdoc.CONSOLIDATED)
+        build_workbook(model, str(path))
+        ws = load_workbook(path)[model["statements"][0]["sheet_name"]]
+
+        header_row = next(row for row in ws.iter_rows()
+                          if any(cell.value == "주석" for cell in row))
+        note_cell = next(cell for cell in header_row if cell.value == "주석")
+        self.assertEqual(ws.column_dimensions[note_cell.column_letter].width, 5.0)
 
     def test_missing_source_note_column_stays_omitted(self):
         path = Path(tempfile.mkdtemp()) / "body.xlsx"

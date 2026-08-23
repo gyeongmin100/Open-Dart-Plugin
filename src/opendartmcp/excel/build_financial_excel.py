@@ -30,6 +30,8 @@ MARGIN_COL_WIDTH = 2.5
 MARGIN_ROW_HEIGHT = 10.0
 PARA_COLS = 10          # 주석 문단을 병합할 열 수
 NOTES_COL_WIDTH = 13.0  # 주석 시트 기본 열 너비
+SINGLE_NOTE_COL_WIDTH = 5.0   # 30pt
+MULTI_NOTE_COL_WIDTH = 3.14   # 약 20.4pt
 LINE_HEIGHT = 14.5      # wrap 시 줄당 높이(pt)
 DEFAULT_ROW_HEIGHT = 16.5
 MAX_ROW_HEIGHT = 409    # Excel 최대 행 높이
@@ -367,12 +369,9 @@ def _apply_col_widths(ws, table: dict) -> list[float]:
     max_tokens = max((len(row) for row in tokens), default=0)
     if note_col is not None or max_tokens:
         max_tokens = max(1, max_tokens)
-        note_units = [
-            max(3.5, max(
-                (_disp_len(row[i]) for row in tokens if i < len(row)),
-                default=0.0) + 1.5)
-            for i in range(max_tokens)
-        ]
+        note_width = (SINGLE_NOTE_COL_WIDTH if max_tokens == 1
+                      else MULTI_NOTE_COL_WIDTH)
+        note_units = [note_width] * max_tokens
         if note_col is None:
             units = source_units + note_units
         else:
