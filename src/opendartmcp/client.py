@@ -2,7 +2,9 @@ import io
 import json
 import logging
 import re
+import time
 import zipfile
+from collections import OrderedDict
 
 import httpx
 import xmltodict
@@ -187,4 +189,38 @@ class DartClient:
                 raise DartApiError(status, message)
             except (ValueError, KeyError):
                 raise DartApiError("999", "ZIP 파일 응답을 파싱할 수 없습니다. API 인증 오류이거나 잘못된 요청일 수 있습니다.")
+        return data
+
+
+class CachingDartClient(DartClient):
+    """같은 공시 ZIP을 5분간 재사용하는 DartClient."""
+
+    ZIP_CACHE_TTL = 300
+    ZIP_CACHE_MAX = 8
+
+    def __init__(self, api_key: str,
+                 initial_zips: dict[str, bytes] | None = None) -> None:
+        super().__init__(api_key)
+        now = time.monotonic()
+        self._zips: OrderedDict[str, tuple[float, bytes]] = OrderedDict(
+            (key, (now, data)) for key, data in (initial_zips or {}).items())
+
+    def snapshot_zips(self) -> dict[str, bytes]:
+        """다른 이벤트 루프에서도 쓸 수 있는 유효한 ZIP bytes."""
+        now = time.monotonic()
+        return {key: data for key, (saved_at, data) in self._zips.items()
+                if now - saved_at < self.ZIP_CACHE_TTL}
+
+    async def download_zip(self, path: str, params: dict) -> bytes:
+        key = f"{path}:{params.get('rcept_no', '')}"
+        cached = self._zips.get(key)
+        if cached and time.monotonic() - cached[0] < self.ZIP_CACHE_TTL:
+            self._zips.move_to_end(key)
+            return cached[1]
+
+        data = await super().download_zip(path, params)
+        if zipfile.is_zipfile(io.BytesIO(data)):
+            self._zips[key] = (time.monotonic(), data)
+            while len(self._zips) > self.ZIP_CACHE_MAX:
+                self._zips.popitem(last=False)
         return data

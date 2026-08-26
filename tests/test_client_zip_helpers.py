@@ -1,15 +1,16 @@
+import time
 import unittest
 
 import httpx
 
-from opendartmcp.client import DartClient
+from opendartmcp.client import CachingDartClient, DartClient
 from opendartmcp.errors import DartApiError
 from tests.fixtures import annual_report_zip
 
 
-def make_client(handler, *, count=None):
+def make_client(handler, *, count=None, client_class=DartClient):
     """MockTransport로 DART HTTP 호출을 가로챈 DartClient."""
-    client = DartClient("test-key")
+    client = client_class("test-key")
 
     async def wrapped(request):
         if count is not None:
@@ -33,6 +34,58 @@ class ClientZipHelperTest(unittest.IsolatedAsyncioTestCase):
             await client.aclose()
         self.assertEqual(content[:2], b"PK")
         self.assertEqual(calls, ["/api/document.xml"])
+
+    async def test_same_filing_zip_is_reused(self):
+        calls = []
+        client = make_client(
+            lambda r: httpx.Response(200, content=annual_report_zip()), count=calls,
+            client_class=CachingDartClient)
+        params = {"rcept_no": "20250319000665"}
+        try:
+            first = await client.download_zip("/document.xml", params)
+            second = await client.download_zip("/document.xml", params)
+        finally:
+            await client.aclose()
+        self.assertIs(first, second)
+        self.assertEqual(calls, ["/api/document.xml"])
+
+    async def test_expired_filing_zip_is_downloaded_again(self):
+        calls = []
+        client = make_client(
+            lambda r: httpx.Response(200, content=annual_report_zip()), count=calls,
+            client_class=CachingDartClient)
+        params = {"rcept_no": "20250319000665"}
+        key = "/document.xml:20250319000665"
+        try:
+            first = await client.download_zip("/document.xml", params)
+            client._zips[key] = (time.monotonic() - 301, first)
+            await client.download_zip("/document.xml", params)
+        finally:
+            await client.aclose()
+        self.assertEqual(calls, ["/api/document.xml", "/api/document.xml"])
+
+    async def test_cached_zip_can_seed_another_client(self):
+        first = make_client(
+            lambda r: httpx.Response(200, content=annual_report_zip()),
+            client_class=CachingDartClient)
+        params = {"rcept_no": "20250319000665"}
+        try:
+            expected = await first.download_zip("/document.xml", params)
+            snapshot = first.snapshot_zips()
+        finally:
+            await first.aclose()
+
+        calls = []
+        second = CachingDartClient("test-key", snapshot)
+        second._http = httpx.AsyncClient(
+            base_url=DartClient.BASE_URL,
+            transport=httpx.MockTransport(lambda r: calls.append(r)))
+        try:
+            actual = await second.download_zip("/document.xml", params)
+        finally:
+            await second.aclose()
+        self.assertIs(actual, expected)
+        self.assertEqual(calls, [])
 
     async def test_zip_documents_lists_titles(self):
         with DartClient.open_zip(annual_report_zip()) as zf:

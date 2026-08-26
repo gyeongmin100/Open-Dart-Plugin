@@ -5,7 +5,7 @@ import sys
 from contextlib import asynccontextmanager
 
 from mcp.server.fastmcp import FastMCP
-from opendartmcp.client import DartClient
+from opendartmcp.client import CachingDartClient, DartClient
 from opendartmcp.config import clear_api_key, get_config_path, mask_api_key, resolve_api_key, save_api_key
 from opendartmcp.errors import DartApiError
 from opendartmcp.tools import (
@@ -27,7 +27,7 @@ def create_server() -> FastMCP:
             "`opendartmcp config set-api-key` or set DART_API_KEY."
         )
 
-    client = DartClient(resolved.api_key)
+    client = CachingDartClient(resolved.api_key)
 
     @asynccontextmanager
     async def lifespan(server):

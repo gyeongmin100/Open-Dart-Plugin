@@ -164,7 +164,7 @@ Open-Dart-Plugin/
 
 > **변경사항**: 재무제표 Excel 생성 코드는 플러그인의 `skills/opendart-excel/scripts/`(Claude·Codex 두 벌)에서 `src/opendartmcp/excel/` 한 벌로 옮겨졌고, MCP 서버가 직접 실행합니다. 플러그인 쪽 스크립트와 `requirements.txt`, 의존성 자동 설치 헬퍼는 제거되었습니다. 기존 85개 OpenDART API 도구는 그대로 유지됩니다.
 >
-> 플러그인의 `.mcp.json`은 `uvx --from opendart-mcp-server opendartmcp`로 **PyPI 배포본**을 실행합니다. 현재 버전은 `1.4.5`입니다.
+> 플러그인의 `.mcp.json`은 `uvx --from opendart-mcp-server opendartmcp`로 **PyPI 배포본**을 실행합니다. 현재 버전은 `1.4.7`입니다.
 
 ---
 
