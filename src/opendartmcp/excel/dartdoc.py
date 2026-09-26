@@ -152,7 +152,8 @@ def attr(el: Tag, name: str) -> str:
     return ""
 
 
-def text_of(el, *, preserve_edge_breaks: bool = False) -> str:
+def text_of(el, *, preserve_edge_breaks: bool = False,
+            exclude_nested_tables: bool = False) -> str:
     """텍스트 추출. <BR>은 개행으로 보존, 블록 P 경계도 개행."""
     parts: list[str] = []
 
@@ -167,6 +168,8 @@ def text_of(el, *, preserve_edge_breaks: bool = False) -> str:
                     continue
                 parts.append(text)
             elif isinstance(child, Tag):
+                if exclude_nested_tables and tag_is(child, "TABLE"):
+                    continue
                 if child.name.upper() == "BR":
                     parts.append("\n")
                     continue
@@ -573,12 +576,32 @@ def extract_statements(items: list[Tag]) -> list[dict]:
     statements: list[dict] = []
     current: dict | None = None
 
+    def statement_items():
+        """중첩된 서식 TABLE을 풀되 데이터 TABLE 내부는 다시 풀지 않는다."""
+        def walk_table(table: Tag):
+            yield table
+            if attr(table, "BORDER").strip() != "0":
+                return
+            nested = [
+                child for child in table.find_all(lambda t: tag_is(t, "TABLE"))
+                if child.find_parent(lambda t: tag_is(t, "TABLE")) is table
+            ]
+            for child in nested:
+                yield from walk_table(child)
+
+        for item in items:
+            if tag_is(item, "TABLE"):
+                yield from walk_table(item)
+            else:
+                yield item
+
     def preamble_cell(cell_el: Tag) -> dict:
         size, font = _font_of(cell_el)
-        return {"text": text_of(cell_el), "align": _align_of(cell_el),
+        return {"text": text_of(cell_el, exclude_nested_tables=True),
+                "align": _align_of(cell_el),
                 "bold": _is_bold(cell_el), "size": size, "font": font}
 
-    for item in items:
+    for item in statement_items():
         # 비상장 외감법인 감사보고서는 재무제표 제목이 TABLE-GROUP 안의
         # TITLE 태그다(섹션 경계 TITLE은 _find_slices가 이미 잘라냈다).
         if tag_is(item, "P", "TITLE"):
@@ -608,8 +631,15 @@ def extract_statements(items: list[Tag]) -> list[dict]:
             rows_buffer: list[list[dict]] = []
             found_title: str | None = None
             title_text = ""
-            for tr in item.find_all(lambda t: tag_is(t, "TR")):
-                cells = [c for c in tr.find_all(lambda t: tag_is(t, *_CELL_TAGS))]
+            trs = [
+                tr for tr in item.find_all(lambda t: tag_is(t, "TR"))
+                if tr.find_parent(lambda t: tag_is(t, "TABLE")) is item
+            ]
+            for tr in trs:
+                cells = [
+                    c for c in tr.find_all(lambda t: tag_is(t, *_CELL_TAGS))
+                    if c.find_parent(lambda t: tag_is(t, "TR")) is tr
+                ]
                 row = [preamble_cell(c) for c in cells]
                 joined = norm("".join(c["text"] for c in row))
                 statement_key = _statement_title_in(joined)

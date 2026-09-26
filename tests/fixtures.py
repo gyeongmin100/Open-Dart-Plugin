@@ -61,6 +61,32 @@ def audit_report_xml(scope: str = "consolidated", *, with_notes: bool = True,
 """
 
 
+def nested_statement_tables_xml(depth: int = 1) -> str:
+    """재무제표 제목·데이터 TABLE을 BORDER=0 포장 TABLE 안에 둔 감사보고서."""
+    company = "중첩테스트 주식회사"
+    normal = "".join(
+        _statement_block("연결" + name, "3", company)
+        for name in _STATEMENTS[:-1]
+    )
+    cashflow = _statement_block("연결현금흐름표", "3", company)
+    for _ in range(depth):
+        cashflow = f'<TABLE BORDER="0"><TR><TD>{cashflow}</TD></TR></TABLE>'
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<DOCUMENT>
+<DOCUMENT-NAME>연결감사보고서</DOCUMENT-NAME>
+<COMPANY-NAME>{company}</COMPANY-NAME>
+<BODY><SECTION-1>
+<TITLE>(첨부)연결재무제표</TITLE>
+{normal}{cashflow}
+<TITLE>주석</TITLE>
+<P>1. 일반사항</P>
+<P>2. 매출채권</P>
+<P>3. 현금및현금성자산</P>
+</SECTION-1></BODY>
+</DOCUMENT>
+"""
+
+
 def annual_body_xml(scope: str = "consolidated", company: str = "테스트 주식회사") -> str:
     """정기보고서 본문 — 주석 열이 없어 하이퍼링크 0개가 정상이다 (plan.md §5.7)."""
     prefix = "연결" if scope == "consolidated" else ""
