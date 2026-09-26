@@ -579,15 +579,35 @@ def extract_statements(items: list[Tag]) -> list[dict]:
     def statement_items():
         """중첩된 서식 TABLE을 풀되 데이터 TABLE 내부는 다시 풀지 않는다."""
         def walk_table(table: Tag):
-            yield table
             if attr(table, "BORDER").strip() != "0":
+                yield table
                 return
             nested = [
                 child for child in table.find_all(lambda t: tag_is(t, "TABLE"))
                 if child.find_parent(lambda t: tag_is(t, "TABLE")) is table
             ]
+            if not nested:
+                yield table
+                return
+            nodes = list(table.descendants)
+            positions = {id(node): index for index, node in enumerate(nodes)}
+            own_text = [
+                positions[id(node)] for node in nodes
+                if isinstance(node, NavigableString) and str(node).strip()
+                and node.find_parent(lambda t: tag_is(t, "TABLE")) is table
+            ]
+            last_nested = max(
+                (positions[id(node)] for child in nested
+                 for node in [child, *child.descendants]),
+                default=len(nodes),
+            )
+            own_text_follows_nested = own_text and min(own_text) > last_nested
+            if not own_text_follows_nested:
+                yield table
             for child in nested:
                 yield from walk_table(child)
+            if own_text_follows_nested:
+                yield table
 
         for item in items:
             if tag_is(item, "TABLE"):

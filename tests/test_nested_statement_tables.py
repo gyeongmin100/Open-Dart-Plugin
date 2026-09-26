@@ -43,6 +43,15 @@ class NestedStatementTablesTest(unittest.TestCase):
         self.assertEqual(model["statements"][-1]["sheet_name"], "연결현금흐름표")
         self.assertEqual(len(model["statements"][-1]["tables"]), 1)
 
+    def test_wrapper_postscript_belongs_to_nested_statement(self):
+        content = nested_statement_tables_xml(with_postscripts=True)
+        model = dartdoc.extract_model(content, dartdoc.CONSOLIDATED)
+
+        self.assertEqual(
+            [statement["postscript"] for statement in model["statements"]],
+            [["별첨 주석 참조"]] * 4,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

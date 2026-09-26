@@ -61,14 +61,18 @@ def audit_report_xml(scope: str = "consolidated", *, with_notes: bool = True,
 """
 
 
-def nested_statement_tables_xml(depth: int = 1) -> str:
+def nested_statement_tables_xml(depth: int = 1, *, with_postscripts: bool = False) -> str:
     """재무제표 제목·데이터 TABLE을 BORDER=0 포장 TABLE 안에 둔 감사보고서."""
     company = "중첩테스트 주식회사"
+    postscript = '<TABLE BORDER="0"><TR><TD>별첨 주석 참조</TD></TR></TABLE>'
     normal = "".join(
         _statement_block("연결" + name, "3", company)
+        + (postscript if with_postscripts else "")
         for name in _STATEMENTS[:-1]
     )
     cashflow = _statement_block("연결현금흐름표", "3", company)
+    if with_postscripts:
+        cashflow += "<P>별첨 주석 참조</P>"
     for _ in range(depth):
         cashflow = f'<TABLE BORDER="0"><TR><TD>{cashflow}</TD></TR></TABLE>'
     return f"""<?xml version="1.0" encoding="utf-8"?>
