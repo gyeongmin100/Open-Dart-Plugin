@@ -6,7 +6,7 @@
 - 표 범위에만 테두리. 제목/회사명/기간/단위/문단에는 테두리 없음.
 - 원문 USERMARK의 글자 크기/서체/굵기, ALIGN/VALIGN 정렬을 반영.
 - 긴 텍스트는 wrap + 행 높이 자동 계산으로 항상 전부 보이게.
-- 주석번호는 표 맨 오른쪽에 번호마다 별도 셀 + 파란색/밑줄/하이퍼링크.
+- 주석번호는 원문 위치(계정과목 옆)에 번호마다 별도 셀 + 파란색/밑줄/하이퍼링크.
 - freeze panes, auto filter 사용 금지.
 """
 from __future__ import annotations
@@ -198,7 +198,7 @@ def _write_table(ws, start_row: int, table: dict, anchors: dict[str, int],
                  link_stats: dict, relocate_notes: bool = True,
                  col_units: list[float] | None = None,
                  bold_headers: bool = True) -> int:
-    """표를 기록하고 다음 빈 행 번호를 반환. 주석 열은 맨 오른쪽으로 이동.
+    """표를 기록하고 다음 빈 행 번호를 반환. 주석 열은 원문 위치에서 분리.
 
     relocate_notes=False면 주석 시트 내부 표를 링크용 셀로 분리하지 않는다.
     col_units: 출력 열별 너비(wrap/행높이 계산용). 없으면 기본 폭 가정.
@@ -213,7 +213,7 @@ def _write_table(ws, start_row: int, table: dict, anchors: dict[str, int],
         max_tokens = max(max_tokens, 1)
 
     # 은행/보험처럼 별도 주석 열 없이 계정명에 "(주석4,6)"이 박힌 경우:
-    # 원문 텍스트는 그대로 두고(완전성 보존) 우측에 링크 열을 추가한다.
+    # 원문 텍스트는 그대로 두고(완전성 보존) 계정과목 옆에 링크 열을 추가한다.
     inline_mode = False
     if relocate_notes and note_col is None:
         inline_tokens = _inline_note_tokens(table)
@@ -223,12 +223,17 @@ def _write_table(ws, start_row: int, table: dict, anchors: dict[str, int],
             max_tokens = max(len(t) for t in tokens_per_row)
 
     bordered = not table.get("borderless")
-    note_start = base_width + 1 + MARGIN
+    note_position = note_col if note_col is not None else 1
+    note_start = note_position + 1 + MARGIN
 
     def out_col(col: int) -> int:
         """원본 열 -> 출력 열(1-based, 여백 열 반영)."""
-        removed = 1 if note_col is not None and col > note_col else 0
-        return col + 1 + MARGIN - removed
+        shift = 0
+        if note_col is not None and col > note_col:
+            shift = max_tokens - 1
+        elif inline_mode and col >= note_position:
+            shift = max_tokens
+        return col + 1 + MARGIN + shift
 
     def unit_width(col1: int, col2: int) -> float:
         i1, i2 = col1 - 1 - MARGIN, col2 - MARGIN
@@ -262,7 +267,7 @@ def _write_table(ws, start_row: int, table: dict, anchors: dict[str, int],
                 horizontal = "right"
             text = cell["text"]
             span = span_of.get((r, c), 1)
-            width_units = unit_width(col_out, col_out + span - 1)
+            width_units = unit_width(col_out, out_col(c + span - 1))
             wrap = "\n" in text or (
                 isinstance(target.value, str)
                 and _disp_len(text) > width_units)
@@ -376,10 +381,10 @@ def _apply_col_widths(ws, table: dict) -> list[float]:
                       else MULTI_NOTE_COL_WIDTH)
         note_units = [note_width] * max_tokens
         if note_col is None:
-            units = source_units + note_units
+            units = source_units[:1] + note_units + source_units[1:]
         else:
-            units = (source_units[:note_col] + source_units[note_col + 1:]
-                     + note_units)
+            units = (source_units[:note_col] + note_units
+                     + source_units[note_col + 1:])
     else:
         units = source_units
     ws.column_dimensions[get_column_letter(1)].width = MARGIN_COL_WIDTH

@@ -87,7 +87,7 @@ class RequestedLayoutTest(unittest.TestCase):
                     if cell.value == "주석 본문")
         self.assertGreaterEqual(ws.row_dimensions[body.row].height, 22)
 
-    def test_statement_note_columns_are_last_and_grow_proportionally(self):
+    def test_statement_note_columns_follow_account_and_grow_proportionally(self):
         statement = _table([
             {"header": True, "cells": [
                 _cell("과목", header=True), _cell("주석", header=True),
@@ -106,12 +106,30 @@ class RequestedLayoutTest(unittest.TestCase):
         prior = next(cell for cell in header_row if cell.value == "전기")
         note = next(cell for cell in header_row if cell.value == "주석")
 
-        self.assertEqual(current.column, account.column + 1)
+        self.assertEqual(note.column, account.column + 1)
+        self.assertEqual(current.column, note.column + 3)
         self.assertEqual(prior.column, current.column + 1)
-        self.assertEqual(note.column, prior.column + 1)
         note_widths = [ws.column_dimensions[
             get_column_letter(note.column + i)].width for i in range(3)]
         self.assertTrue(all(width >= 3.14 * 12 / 11 for width in note_widths))
+
+    def test_inline_notes_follow_account_and_preserve_amount_header_merges(self):
+        statement = _table([
+            {"header": True, "cells": [
+                _cell("과목", header=True), _cell("당기", header=True), None,
+            ]},
+            {"header": False, "cells": [
+                _cell("현금 (주석1,2)"), _cell("100"), _cell("90"),
+            ]},
+        ], col_widths=[210, 100, 100])
+        statement["merges"] = [(0, 1, 0, 2)]
+        ws = _build(_model(statement_table=statement))["재무상태표"]
+        self.assertEqual([ws.cell(4, c).value for c in range(2, 7)],
+                         ["현금 (주석1,2)", 1, 2, 100, 90])
+        self.assertEqual(ws["C3"].value, "주석")
+        self.assertIn("E3:F3", {str(rng) for rng in ws.merged_cells.ranges})
+        self.assertEqual(ws["C4"].hyperlink.target, "#'주석'!B2")
+        self.assertAlmostEqual(ws.column_dimensions["E"].width, 100 / 7)
 
     def test_unit_row_spans_table_width_and_is_right_aligned(self):
         unit = _table([

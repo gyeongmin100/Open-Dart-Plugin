@@ -34,7 +34,7 @@ class StatementNoteColumnTest(unittest.TestCase):
         self.assertEqual(dartdoc.split_note_refs("4 5 6"), ["4", "5", "6"])
         self.assertEqual(dartdoc.split_note_refs("12,32"), ["12", "32"])
 
-    def test_note_column_moves_right_and_keeps_compact_number_cells(self):
+    def test_note_column_stays_beside_account_with_compact_number_cells(self):
         path = Path(tempfile.mkdtemp()) / "notes.xlsx"
         model = dartdoc.extract_model(
             audit_report_xml("consolidated"), dartdoc.CONSOLIDATED)
@@ -50,8 +50,8 @@ class StatementNoteColumnTest(unittest.TestCase):
         account_col = header.index("과목") + 1
         note_col = header.index("주석") + 1
         amount_col = header.index("당기") + 1
-        self.assertEqual(amount_col, account_col + 1)
-        self.assertEqual(note_col, amount_col + 1)
+        self.assertEqual(note_col, account_col + 1)
+        self.assertEqual(amount_col, note_col + 3)
 
         data_row = header_row[0].row + 1
         note_cells = [ws.cell(data_row, note_col + i) for i in range(3)]
@@ -65,6 +65,7 @@ class StatementNoteColumnTest(unittest.TestCase):
         widths = [ws.column_dimensions[cell.column_letter].width
                   for cell in note_cells]
         self.assertEqual(widths, [3.43, 3.43, 3.43])
+        self.assertEqual(note_cells[0].hyperlink.target, "#'주석'!B2")
 
     def test_single_note_column_is_wide_enough_for_header(self):
         path = Path(tempfile.mkdtemp()) / "single-note.xlsx"
