@@ -4,6 +4,7 @@ import logging
 import re
 import time
 import zipfile
+from xml.parsers.expat import ExpatError
 from collections import OrderedDict
 
 import httpx
@@ -181,13 +182,16 @@ class DartClient:
                 with zf.open(xml_names[0]) as xml_file:
                     data = xmltodict.parse(xml_file.read())
         except zipfile.BadZipFile:
-            # API 인증 오류 등의 경우 JSON 에러 응답이 반환될 수 있음
+            # 점검·인증 오류는 ZIP 대신 XML 또는 JSON으로 돌아온다.
             try:
-                error_data = response.json()
+                if content.lstrip().startswith(b"<"):
+                    error_data = xmltodict.parse(content).get("result", {})
+                else:
+                    error_data = response.json()
                 status = error_data.get("status", "999")
                 message = error_data.get("message", "")
                 raise DartApiError(status, message)
-            except (ValueError, KeyError):
+            except (ValueError, KeyError, AttributeError, ExpatError):
                 raise DartApiError("999", "ZIP 파일 응답을 파싱할 수 없습니다. API 인증 오류이거나 잘못된 요청일 수 있습니다.")
         return data
 

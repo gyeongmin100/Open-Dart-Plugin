@@ -23,6 +23,17 @@ def make_client(handler, *, count=None, client_class=DartClient):
 
 
 class ClientZipHelperTest(unittest.IsolatedAsyncioTestCase):
+    async def test_company_list_preserves_xml_maintenance_error(self):
+        body = '<result><status>800</status><message>시스템 점검 중</message></result>'
+        client = make_client(lambda r: httpx.Response(200, content=body.encode()))
+        try:
+            with self.assertRaises(DartApiError) as caught:
+                await client.get_zip_xml("/corpCode.xml", {})
+            self.assertEqual(caught.exception.status, "800")
+            self.assertEqual(caught.exception.message, "시스템 점검 중")
+        finally:
+            await client.aclose()
+
     async def test_download_zip_returns_bytes_once(self):
         calls = []
         client = make_client(
