@@ -2,7 +2,7 @@
   "mcpServers": {
     "open-dart": {
       "command": "uvx",
-      "args": ["--from", "opendart-mcp-server", "opendartmcp"],
+      "args": ["--upgrade", "--from", "opendart-mcp-server", "opendartmcp"],
       "env": {
         "DART_API_KEY": "${user_config.DART_API_KEY}"
       }

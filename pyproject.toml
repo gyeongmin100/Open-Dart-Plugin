@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "opendart-mcp-server"
-version = "1.4.11"
+version = "1.4.12"
 description = "OpenDART MCP server with 85 disclosure APIs and verified financial statement Excel workbooks"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -36,3 +36,6 @@ opendartmcp = "opendartmcp.server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/opendartmcp"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/opendartmcp", "README.md", "LICENSE", "pyproject.toml"]

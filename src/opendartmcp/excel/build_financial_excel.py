@@ -521,11 +521,7 @@ def build_workbook(model: dict, output: str) -> dict:
         for table in statement["tables"]:
             row = _write_table(ws, row, table, anchors, link_stats,
                                col_units=col_units or None)
-        for text in statement["postscript"]:
-            cell = ws.cell(row=row, column=1 + MARGIN)
-            cell.value = text
-            _align(cell, "left", wrap=False)
-            row += 1
+        # postscript는 원문 검증용으로 보존하되 워크북에는 출력하지 않는다.
 
     # 눈금선 숨김 (전 시트)
     for ws in wb.worksheets:

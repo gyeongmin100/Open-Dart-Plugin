@@ -52,6 +52,27 @@ def _build(model):
 
 
 class RequestedLayoutTest(unittest.TestCase):
+    def test_statement_postscript_is_not_rendered(self):
+        statement = _table([
+            {"header": True, "cells": [_cell("과목", header=True),
+                                        _cell("당기", header=True)]},
+            {"header": False, "cells": [_cell("현금"), _cell("100")]},
+        ])
+        model = _model(statement_table=statement)
+        model["statements"][0]["postscript"] = [
+            '"첨부된 주석은 본 재무제표의 일부입니다."'
+        ]
+
+        wb = _build(model)
+        values = [cell.value for ws in wb.worksheets
+                  for row in ws.iter_rows() for cell in row
+                  if cell.value is not None]
+
+        self.assertNotIn(model["statements"][0]["postscript"][0], values)
+        for expected in ("재무상태표", "과목", "당기", "현금", 100,
+                         "1. 주석 제목", "주석 본문"):
+            self.assertIn(expected, values)
+
     def test_note_paragraphs_merge_from_b_through_l(self):
         ws = _build(_model())["주석"]
         paragraph = next(cell for row in ws.iter_rows() for cell in row
